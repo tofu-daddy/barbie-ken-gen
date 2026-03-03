@@ -20,9 +20,9 @@ export default async (req, context) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        // Attempt with 1.5-flash
+        // Attempt with 1.5-flash-latest
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-1.5-flash-latest",
         });
 
         const result = await model.generateContent({
