@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export default async function handler(req, context) {
-    // Only allow POST
+export default async function handler(req) {
     if (req.method !== "POST") {
         return new Response(JSON.stringify({ error: "Method not allowed" }), {
             status: 405,
@@ -9,7 +8,7 @@ export default async function handler(req, context) {
         });
     }
 
-    const { prompt, model = "claude-opus-4-5", max_tokens = 1000 } = await req.json();
+    const { prompt, max_tokens = 1000 } = await req.json();
 
     if (!prompt) {
         return new Response(JSON.stringify({ error: "Missing prompt" }), {
@@ -18,15 +17,14 @@ export default async function handler(req, context) {
         });
     }
 
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-    const message = await client.messages.create({
-        model,
-        max_tokens,
-        messages: [{ role: "user", content: prompt }],
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash",
+        generationConfig: { maxOutputTokens: max_tokens },
     });
 
-    const text = message.content?.map((b) => b.text || "").join("") || "";
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
     return new Response(JSON.stringify({ text }), {
         status: 200,
