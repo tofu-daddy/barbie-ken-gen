@@ -36,11 +36,9 @@ export default function BarbieKenGenerator() {
     };
 
     const buildImagePrompt = (res) => {
-        if (isKen) {
-            return `A Ken doll action figure in collector box packaging. He is a handsome plastic fashion doll with stylized features. His outfit and accessories are inspired by: job as ${answers.job}, hobbies including ${answers.hobby}, with a ${answers.vibe} vibe. His name card reads "${res.barbieName}". The box is blue and silver with bold "KEN" branding. Toy photography style, studio lighting, high detail, clean white background, collectible figure box art. Mattel aesthetic, 1990s toy packaging style.`;
-        } else {
-            return `A Barbie doll in a collector box with pink packaging. She is a beautiful plastic fashion doll with stylized features, glossy hair, and a bright smile. Her glamorous outfit and accessories are inspired by: career as ${answers.job}, hobbies including ${answers.hobby}, with a ${answers.vibe} vibe. Her name card reads "${res.barbieName}". The box is hot pink with gold foil "BARBIE" branding. Toy photography style, studio lighting, high detail, clean background, collectible figure box art. Mattel aesthetic, glamorous and iconic.`;
-        }
+        const theme = isKen ? "blue and silver" : "hot pink and gold";
+        const role = isKen ? "Ken" : "Barbie";
+        return `A ${role} doll in a collector box, ${theme} packaging, career as ${answers.job}, inspired by ${answers.vibe} vibe. Name on box: "${res.barbieName}". Toy photography, studio lighting, high detail, 3D render, iconic Mattel aesthetic.`;
     };
 
     const generateName = async () => {
@@ -124,10 +122,11 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             setResult(parsed);
             triggerSparkles();
 
+            // Generate image via Pollinations (no auth needed)
             const imgPrompt = buildImagePrompt(parsed);
             const encodedPrompt = encodeURIComponent(imgPrompt);
-            const seed = Math.floor(Math.random() * 99999);
-            const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=640&seed=${seed}&nologo=true&enhance=true`;
+            const seed = Math.floor(Math.random() * 1000000);
+            const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
             setImageUrl(url);
 
         } catch (e) {
