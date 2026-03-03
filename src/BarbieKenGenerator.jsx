@@ -126,7 +126,8 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             const imgPrompt = buildImagePrompt(parsed);
             const encodedPrompt = encodeURIComponent(imgPrompt);
             const seed = Math.floor(Math.random() * 1000000);
-            const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
+            // Switched to pollinations.ai/p/ as image.pollinations.ai is currently down
+            const url = `https://pollinations.ai/p/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
             setImageUrl(url);
 
         } catch (e) {
