@@ -27,8 +27,14 @@ export default async (req, context) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        // Preferred models
-        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+        // Models discovered from user's API key logs
+        const modelsToTry = [
+            "gemini-flash-latest",     // Usually reliable for free tier
+            "gemini-2.0-flash",       // Modern, listed in logs
+            "gemini-pro-latest",      // Pro version fallback
+            "gemini-2.0-flash-lite"   // Lightweight fallback
+        ];
+
         let lastError = null;
 
         for (const modelName of modelsToTry) {
@@ -47,35 +53,14 @@ export default async (req, context) => {
             } catch (e) {
                 console.warn(`Failed with ${modelName}:`, e.message);
                 lastError = e;
-                if (e.message.includes("429")) break;
+                // If quota exceeded, we might want to try one more model just in case of separate quotas, 
+                // but usually they share. We'll try the next ID anyway.
             }
-        }
-
-        // Discovery phase
-        let discovery = { v1: [], v1beta: [] };
-        try {
-            const v1res = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${process.env.GEMINI_API_KEY}`);
-            if (v1res.ok) {
-                const v1data = await v1res.json();
-                discovery.v1 = v1data.models?.map(m => m.name.replace("models/", "")) || [];
-            } else {
-                discovery.v1_error = `HTTP ${v1res.status}`;
-            }
-
-            const v1betares = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
-            if (v1betares.ok) {
-                const v1betadata = await v1betares.json();
-                discovery.v1beta = v1betadata.models?.map(m => m.name.replace("models/", "")) || [];
-            } else {
-                discovery.v1beta_error = `HTTP ${v1betares.status}`;
-            }
-        } catch (e) {
-            discovery.fetch_error = e.message;
         }
 
         return new Response(JSON.stringify({
-            error: lastError?.message || "All models failed.",
-            discovery: discovery
+            error: lastError?.message || "All discovered models failed.",
+            hint: "Try again in a few seconds — the Dreamhouse is a bit crowded right now! ✨"
         }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
