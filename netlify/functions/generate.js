@@ -20,7 +20,7 @@ export default async (req, context) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
+            model: "gemini-1.5-flash",
             generationConfig: { maxOutputTokens: max_tokens },
         });
 
@@ -33,11 +33,13 @@ export default async (req, context) => {
         });
     } catch (error) {
         console.error("Gemini Error:", error);
-        return new Response(JSON.stringify({
-            error: error.message || "Unknown error in the Dreamhouse.",
-            stack: error.stack,
-            envKeyExists: !!process.env.GEMINI_API_KEY
-        }), {
+
+        let userMessage = "Something went wrong in the Dreamhouse. Try again!";
+        if (error.message.includes("429") || error.message.includes("quota")) {
+            userMessage = "The Dreamhouse is too busy right now (Gemini Quota Exceeded). Please try again in 30 seconds!";
+        }
+
+        return new Response(JSON.stringify({ error: userMessage }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
