@@ -109,8 +109,18 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             }
 
             const { text } = data;
-            const clean = text.replace(/```json|```/g, "").trim();
-            const parsed = JSON.parse(clean);
+
+            let parsed;
+            try {
+                // With responseMimeType: "application/json", the text should be clean JSON
+                // but we keep the fence removal just in case of unexpected format
+                const clean = text.replace(/```json|```/g, "").trim();
+                parsed = JSON.parse(clean);
+            } catch (parseError) {
+                console.error("JSON Parse Error:", parseError, "Original text:", text);
+                throw new Error("The Dreamhouse had a glitch in its code! (Invalid JSON reply from AI). Please try again. ✨");
+            }
+
             setResult(parsed);
             triggerSparkles();
 

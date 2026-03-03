@@ -42,7 +42,10 @@ export default async (req, context) => {
                 const model = genAI.getGenerativeModel({ model: modelName });
                 const result = await model.generateContent({
                     contents: [{ role: "user", parts: [{ text: prompt }] }],
-                    generationConfig: { maxOutputTokens: max_tokens },
+                    generationConfig: {
+                        maxOutputTokens: max_tokens,
+                        responseMimeType: "application/json"
+                    },
                 });
                 const text = result.response.text();
 
