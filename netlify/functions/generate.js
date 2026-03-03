@@ -19,12 +19,17 @@ export default async (req, context) => {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+        // Attempt with 1.5-flash
         const model = genAI.getGenerativeModel({
             model: "gemini-1.5-flash",
+        });
+
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: { maxOutputTokens: max_tokens },
         });
 
-        const result = await model.generateContent(prompt);
         const text = result.response.text();
 
         return new Response(JSON.stringify({ text }), {
@@ -33,10 +38,17 @@ export default async (req, context) => {
         });
     } catch (error) {
         console.error("Gemini Error:", error);
-        return new Response(JSON.stringify({
-            error: error.message || "Unknown error in the Dreamhouse.",
-            details: error.stack
-        }), {
+
+        let userMessage = "Something went wrong in the Dreamhouse. ";
+        if (error.message.includes("429") || error.message.includes("quota")) {
+            userMessage += "The Dreamhouse is too busy (Quota Exceeded). Try again in 30 seconds!";
+        } else if (error.message.includes("404")) {
+            userMessage += "The AI model couldn't be found. Please check your Google AI Studio project settings.";
+        } else {
+            userMessage += error.message || "Unknown error.";
+        }
+
+        return new Response(JSON.stringify({ error: userMessage }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
