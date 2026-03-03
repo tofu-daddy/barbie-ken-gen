@@ -33,7 +33,11 @@ export default async (req, context) => {
         });
     } catch (error) {
         console.error("Gemini Error:", error);
-        return new Response(JSON.stringify({ error: "Service currently unavailable in the Dreamhouse." }), {
+        return new Response(JSON.stringify({
+            error: error.message || "Unknown error in the Dreamhouse.",
+            stack: error.stack,
+            envKeyExists: !!process.env.GEMINI_API_KEY
+        }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
