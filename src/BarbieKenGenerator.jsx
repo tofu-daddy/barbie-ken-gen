@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function BarbieKenGenerator({ apiKey, onOpenSettings }) {
+export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
     const [result, setResult] = useState(null);
@@ -48,10 +48,6 @@ export default function BarbieKenGenerator({ apiKey, onOpenSettings }) {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
             return;
         }
-        if (!apiKey) {
-            setError("No API key found. Click the ⚙️ button to add your Anthropic key.");
-            return;
-        }
         setError(null);
         setLoading(true);
         setResult(null);
@@ -97,34 +93,29 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 }`;
 
         try {
-            const response = await fetch("https://api.anthropic.com/v1/messages", {
+            // Call our server-side proxy — API key stays on the server
+            const response = await fetch("/api/generate", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": apiKey,
-                    "anthropic-version": "2023-06-01",
-                    "anthropic-dangerous-direct-browser-access": "true",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    prompt: isKen ? kenPrompt : barbiePrompt,
                     model: "claude-opus-4-5",
                     max_tokens: 1000,
-                    messages: [{ role: "user", content: isKen ? kenPrompt : barbiePrompt }],
                 }),
             });
 
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
-                throw new Error(err?.error?.message || `API error ${response.status}`);
+                throw new Error(err?.error || `Server error ${response.status}`);
             }
 
-            const data = await response.json();
-            const text = data.content?.map((b) => b.text || "").join("") || "";
+            const { text } = await response.json();
             const clean = text.replace(/```json|```/g, "").trim();
             const parsed = JSON.parse(clean);
             setResult(parsed);
             triggerSparkles();
 
-            // Generate image via Pollinations
+            // Generate image via Pollinations (no auth needed)
             const imgPrompt = buildImagePrompt(parsed);
             const encodedPrompt = encodeURIComponent(imgPrompt);
             const seed = Math.floor(Math.random() * 99999);
@@ -132,11 +123,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             setImageUrl(url);
 
         } catch (e) {
-            if (e.message.includes("401") || e.message.includes("invalid") || e.message.includes("auth")) {
-                setError("Invalid API key. Click ⚙️ to update it.");
-            } else {
-                setError(e.message || "Something went wrong in the Dreamhouse. Try again!");
-            }
+            setError(e.message || "Something went wrong in the Dreamhouse. Try again!");
         } finally {
             setLoading(false);
         }
@@ -253,29 +240,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
         .outline-btn:hover {
           background: ${accentLight} !important;
         }
-        .settings-btn:hover {
-          opacity: 1 !important;
-          transform: rotate(30deg);
-        }
       `}</style>
-
-            {/* Settings button */}
-            <button
-                className="settings-btn"
-                onClick={onOpenSettings}
-                title="API Key Settings"
-                style={{
-                    position: "fixed", top: "16px", right: "16px",
-                    background: "rgba(255,255,255,0.7)",
-                    border: `1.5px solid ${accentMid}40`,
-                    borderRadius: "50%", width: "38px", height: "38px",
-                    fontSize: "18px", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.25s", opacity: 0.65,
-                    backdropFilter: "blur(6px)",
-                    zIndex: 50,
-                }}
-            >⚙️</button>
 
             {sparkles.map((s) => (
                 <div key={s.id} style={{
@@ -481,7 +446,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             </p>
                         </div>
 
-                        {/* Outfit + accessory highlight */}
+                        {/* Outfit + accessory */}
                         {(result.outfit || result.accessory) && (
                             <div style={{
                                 background: `linear-gradient(135deg, ${accentLight}, rgba(255,255,255,0.6))`,
