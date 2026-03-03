@@ -33,13 +33,10 @@ export default async (req, context) => {
         });
     } catch (error) {
         console.error("Gemini Error:", error);
-
-        let userMessage = "Something went wrong in the Dreamhouse. Try again!";
-        if (error.message.includes("429") || error.message.includes("quota")) {
-            userMessage = "The Dreamhouse is too busy right now (Gemini Quota Exceeded). Please try again in 30 seconds!";
-        }
-
-        return new Response(JSON.stringify({ error: userMessage }), {
+        return new Response(JSON.stringify({
+            error: error.message || "Unknown error in the Dreamhouse.",
+            details: error.stack
+        }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
