@@ -18,9 +18,16 @@ export default async (req, context) => {
             });
         }
 
+        if (!process.env.GEMINI_API_KEY) {
+            return new Response(JSON.stringify({ error: "GEMINI_API_KEY is missing in Netlify settings!" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        // List of models to try in order of preference
+        // Preferred models
         const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
         let lastError = null;
 
@@ -40,24 +47,35 @@ export default async (req, context) => {
             } catch (e) {
                 console.warn(`Failed with ${modelName}:`, e.message);
                 lastError = e;
-                // If it's a quota issue (429), don't keep trying others as they likely share quota
                 if (e.message.includes("429")) break;
             }
         }
 
-        // If we reach here, all models failed
-        let availableModels = [];
+        // Discovery phase
+        let discovery = { v1: [], v1beta: [] };
         try {
-            const modelsResult = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
-            const data = await modelsResult.json();
-            availableModels = data.models?.map(m => m.name.replace("models/", "")) || [];
+            const v1res = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${process.env.GEMINI_API_KEY}`);
+            if (v1res.ok) {
+                const v1data = await v1res.json();
+                discovery.v1 = v1data.models?.map(m => m.name.replace("models/", "")) || [];
+            } else {
+                discovery.v1_error = `HTTP ${v1res.status}`;
+            }
+
+            const v1betares = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+            if (v1betares.ok) {
+                const v1betadata = await v1betares.json();
+                discovery.v1beta = v1betadata.models?.map(m => m.name.replace("models/", "")) || [];
+            } else {
+                discovery.v1beta_error = `HTTP ${v1betares.status}`;
+            }
         } catch (e) {
-            availableModels = ["Could not list models: " + e.message];
+            discovery.fetch_error = e.message;
         }
 
         return new Response(JSON.stringify({
-            error: lastError?.message || "All models failed in the Dreamhouse.",
-            availableModels: availableModels
+            error: lastError?.message || "All models failed.",
+            discovery: discovery
         }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
