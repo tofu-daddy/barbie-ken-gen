@@ -39,16 +39,20 @@ export default async (req, context) => {
     } catch (error) {
         console.error("Gemini Error:", error);
 
-        let userMessage = "Something went wrong in the Dreamhouse. ";
-        if (error.message.includes("429") || error.message.includes("quota")) {
-            userMessage += "The Dreamhouse is too busy (Quota Exceeded). Try again in 30 seconds!";
-        } else if (error.message.includes("404")) {
-            userMessage += "The AI model couldn't be found. Please check your Google AI Studio project settings.";
-        } else {
-            userMessage += error.message || "Unknown error.";
+        // List models to debug availability
+        let availableModels = [];
+        try {
+            const modelsResult = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+            const data = await modelsResult.json();
+            availableModels = data.models?.map(m => m.name.replace("models/", "")) || [];
+        } catch (e) {
+            availableModels = ["Could not list models: " + e.message];
         }
 
-        return new Response(JSON.stringify({ error: userMessage }), {
+        return new Response(JSON.stringify({
+            error: error.message || "Unknown error in the Dreamhouse.",
+            availableModels: availableModels
+        }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
