@@ -93,23 +93,26 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 }`;
 
         try {
-            // Call our server-side proxy — API key stays on the server
             const response = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     prompt: isKen ? kenPrompt : barbiePrompt,
-                    model: "claude-opus-4-5",
                     max_tokens: 1000,
                 }),
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err?.error || `Server error ${response.status}`);
+                let msg = data.error || `Server error ${response.status}`;
+                if (data.availableModels && data.availableModels.length > 0) {
+                    msg += "\n\nAvailable models for your key: " + data.availableModels.join(", ");
+                }
+                throw new Error(msg);
             }
 
-            const { text } = await response.json();
+            const { text } = data;
             const clean = text.replace(/```json|```/g, "").trim();
             const parsed = JSON.parse(clean);
             setResult(parsed);

@@ -20,26 +20,32 @@ export default async (req, context) => {
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-        // Attempt with 1.5-flash-latest
-        const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash-latest",
-        });
+        // List of models to try in order of preference
+        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+        let lastError = null;
 
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: max_tokens },
-        });
+        for (const modelName of modelsToTry) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent({
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { maxOutputTokens: max_tokens },
+                });
+                const text = result.response.text();
 
-        const text = result.response.text();
+                return new Response(JSON.stringify({ text, modelUsed: modelName }), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            } catch (e) {
+                console.warn(`Failed with ${modelName}:`, e.message);
+                lastError = e;
+                // If it's a quota issue (429), don't keep trying others as they likely share quota
+                if (e.message.includes("429")) break;
+            }
+        }
 
-        return new Response(JSON.stringify({ text }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-        });
-    } catch (error) {
-        console.error("Gemini Error:", error);
-
-        // List models to debug availability
+        // If we reach here, all models failed
         let availableModels = [];
         try {
             const modelsResult = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
@@ -50,9 +56,14 @@ export default async (req, context) => {
         }
 
         return new Response(JSON.stringify({
-            error: error.message || "Unknown error in the Dreamhouse.",
+            error: lastError?.message || "All models failed in the Dreamhouse.",
             availableModels: availableModels
         }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
         });
