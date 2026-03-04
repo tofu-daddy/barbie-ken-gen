@@ -56,8 +56,19 @@ export default async (req, context) => {
             } catch (e) {
                 console.warn(`Failed with ${modelName}:`, e.message);
                 lastError = e;
-                // If quota exceeded, we might want to try one more model just in case of separate quotas, 
-                // but usually they share. We'll try the next ID anyway.
+
+                // If we get a 429, it's a quota issue. Stop and tell the user.
+                if (e.message.includes("429") || e.message.includes("quota")) {
+                    return new Response(JSON.stringify({
+                        error: "The Dreamhouse is currently at capacity! 🎀",
+                        errorType: "QUOTA_EXCEEDED",
+                        details: e.message,
+                        hint: "Google's free tier has a limit. Please wait about 30-60 seconds and try again! ✨"
+                    }), {
+                        status: 429,
+                        headers: { "Content-Type": "application/json" }
+                    });
+                }
             }
         }
 

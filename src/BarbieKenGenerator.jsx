@@ -131,7 +131,11 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             setImageUrl(url);
 
         } catch (e) {
-            setError(e.message || "Something went wrong in the Dreamhouse. Try again! ✨");
+            if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
+                setError("The Dreamhouse is currently at capacity! 🎀\n\nGoogle's free AI tier has a limit. Please wait about 30-60 seconds and try again! ✨");
+            } else {
+                setError(e.message || "Something went wrong in the Dreamhouse. Try again! ✨");
+            }
         } finally {
             setLoading(false);
         }
