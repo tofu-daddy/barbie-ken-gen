@@ -4,8 +4,6 @@ export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
     const [result, setResult] = useState(null);
-    const [imageUrl, setImageUrl] = useState(null);
-    const [imageLoaded, setImageLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
@@ -35,12 +33,6 @@ export default function BarbieKenGenerator() {
         setTimeout(() => setSparkles([]), 2200);
     };
 
-    const buildImagePrompt = (res) => {
-        const theme = isKen ? "blue and silver" : "hot pink and gold";
-        const role = isKen ? "Ken" : "Barbie";
-        return `A ${role} doll in a collector box, ${theme} packaging, career as ${answers.job}, inspired by ${answers.vibe} vibe. Name on box: "${res.barbieName}". Toy photography, studio lighting, high detail, 3D render, iconic Mattel aesthetic.`;
-    };
-
     const generateName = async () => {
         if (!answers.job || !answers.vibe || !answers.trait || !answers.hobby) {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
@@ -49,8 +41,6 @@ export default function BarbieKenGenerator() {
         setError(null);
         setLoading(true);
         setResult(null);
-        setImageUrl(null);
-        setImageLoaded(false);
 
         const kenPrompt = `You are the official Ken Name Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
 
@@ -110,25 +100,15 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
             let parsed;
             try {
-                // With responseMimeType: "application/json", the text should be clean JSON
-                // but we keep the fence removal just in case of unexpected format
                 const clean = text.replace(/```json|```/g, "").trim();
                 parsed = JSON.parse(clean);
             } catch (parseError) {
                 console.error("JSON Parse Error:", parseError, "Original text:", text);
-                throw new Error("The Dreamhouse had a glitch in its code! (Invalid JSON reply from AI). Please try again. ✨");
+                throw new Error("The Dreamhouse had a glitch! Please try again. ✨");
             }
 
             setResult(parsed);
             triggerSparkles();
-
-            // Generate image via Pollinations (no auth needed)
-            const imgPrompt = buildImagePrompt(parsed);
-            const encodedPrompt = encodeURIComponent(imgPrompt);
-            const seed = Math.floor(Math.random() * 1000000);
-            // Switched to pollinations.ai/p/ as image.pollinations.ai is currently down
-            const url = `https://pollinations.ai/p/${encodedPrompt}?width=512&height=512&seed=${seed}&nologo=true`;
-            setImageUrl(url);
 
         } catch (e) {
             if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
@@ -143,8 +123,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
     const reset = () => {
         setResult(null);
-        setImageUrl(null);
-        setImageLoaded(false);
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
         setError(null);
     };
@@ -231,10 +209,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-8px); }
         }
-        @keyframes imgReveal {
-          from { opacity: 0; transform: scale(0.92); }
-          to { opacity: 1; transform: scale(1); }
-        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
@@ -274,7 +248,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 }} />
             ))}
 
-            {/* Header */}
             <div style={{ textAlign: "center", marginBottom: "32px", animation: "float 4s ease-in-out infinite" }}>
                 <div style={{ fontSize: "52px", marginBottom: "8px" }}>
                     {gender === null ? "💗💙" : isKen ? "👱‍♂️" : "👑"}
@@ -294,7 +267,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 </p>
             </div>
 
-            {/* Main card */}
             <div style={{
                 background: "rgba(255,255,255,0.78)",
                 backdropFilter: "blur(14px)",
@@ -308,7 +280,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 transition: "border-color 0.5s, box-shadow 0.5s",
             }}>
 
-                {/* SCREEN 1: Gender pick */}
                 {gender === null && (
                     <div style={{ textAlign: "center" }}>
                         <p style={{ color: "#7c3aed", marginBottom: "28px", fontSize: "15px", fontStyle: "italic" }}>
@@ -335,7 +306,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                     </div>
                 )}
 
-                {/* SCREEN 2: Questions */}
                 {gender !== null && !result && (
                     <>
                         <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
@@ -354,8 +324,8 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                         <p style={{ color: accentDark, marginBottom: "22px", fontSize: "14px", textAlign: "center", fontStyle: "italic" }}>
                             {isKen
-                                ? "4 quick answers → we'll reveal your Ken identity + generate your doll ⚡"
-                                : "4 quick answers → we'll reveal your Barbie alter ego + generate your doll 🌸"}
+                                ? "4 quick answers → we'll reveal your Ken identity ✨"
+                                : "4 quick answers → we'll reveal your Barbie alter ego 🌸"}
                         </p>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
@@ -391,75 +361,25 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             animation: loading ? "shimmer 1s ease-in-out infinite" : "none",
                         }}>
                             {loading
-                                ? (isKen ? "⚡ Building your Ken doll..." : "✨ Building your Barbie doll...")
+                                ? (isKen ? "⚡ Consulting the Mojo Dojo Casa House..." : "✨ Consulting the Dreamhouse...")
                                 : (isKen ? "⚡ Generate My Ken" : "💗 Generate My Barbie")}
                         </button>
                     </>
                 )}
 
-                {/* SCREEN 3: Result */}
                 {result && (
                     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
-
-                        {/* Doll image */}
-                        <div style={{
-                            borderRadius: "18px",
-                            overflow: "hidden",
-                            marginBottom: "24px",
-                            border: `3px solid ${accentMid}40`,
-                            background: accentLight,
-                            minHeight: "300px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            position: "relative",
-                        }}>
-                            {imageUrl && !imageLoaded && (
-                                <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                                    <div style={{
-                                        width: "40px", height: "40px",
-                                        border: `3px solid ${accentLight}`,
-                                        borderTopColor: accentMid,
-                                        borderRadius: "50%",
-                                        animation: "spin 0.8s linear infinite",
-                                        margin: "0 auto 16px",
-                                    }} />
-                                    <p style={{ color: accent, fontSize: "14px", fontStyle: "italic", margin: 0 }}>
-                                        {isKen ? "Sculpting your Ken doll... ⚡" : "Designing your Barbie doll... ✨"}
-                                    </p>
-                                    <p style={{ color: accent, fontSize: "12px", opacity: 0.6, margin: "6px 0 0", fontStyle: "italic" }}>
-                                        This takes about 10–15 seconds
-                                    </p>
-                                </div>
-                            )}
-                            {imageUrl && (
-                                <img
-                                    src={imageUrl}
-                                    alt={`${result.barbieName} doll`}
-                                    onLoad={() => setImageLoaded(true)}
-                                    onError={() => setImageLoaded(true)}
-                                    style={{
-                                        width: "100%",
-                                        display: imageLoaded ? "block" : "none",
-                                        animation: "imgReveal 0.6s ease-out",
-                                    }}
-                                />
-                            )}
-                        </div>
-
-                        {/* Name + tagline */}
-                        <div style={{ textAlign: "center", marginBottom: "20px" }}>
-                            <div style={{ fontSize: "28px", marginBottom: "6px" }}>{isKen ? "⚡" : "🌟"}</div>
-                            <h2 style={{ fontSize: "clamp(18px, 4vw, 26px)", color: accentDark, margin: "0 0 8px", fontWeight: "bold" }}>
+                        <div style={{ textAlign: "center", marginBottom: "32px", padding: "20px 0" }}>
+                            <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
+                            <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
                                 {result.barbieName}
                             </h2>
-                            <p style={{ fontSize: "15px", color: accent, fontStyle: "italic", margin: 0, padding: "0 8px" }}>
+                            <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 20px", lineHeight: "1.4" }}>
                                 &ldquo;{result.tagline}&rdquo;
                             </p>
                         </div>
 
-                        {/* Stats cards */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             {[
                                 { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
                                 { emoji: isKen ? "🎸" : "👜", label: "Accessory", value: result.accessory },
@@ -470,32 +390,32 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                 <div key={label} style={{
                                     background: `${accentLight}80`,
                                     border: `1.5px solid ${accentMid}25`,
-                                    borderRadius: "12px", padding: "12px 14px",
+                                    borderRadius: "16px", padding: "16px 20px",
+                                    transition: "transform 0.2s",
                                 }}>
-                                    <p style={{ margin: "0 0 3px", fontSize: "11px", fontWeight: "bold", color: accent, textTransform: "uppercase", letterSpacing: "1px" }}>
+                                    <p style={{ margin: "0 0 5px", fontSize: "12px", fontWeight: "bold", color: accent, textTransform: "uppercase", letterSpacing: "1.2px" }}>
                                         {emoji} {label}
                                     </p>
-                                    <p style={{ margin: 0, color: accentDark, fontSize: "13px", lineHeight: "1.5" }}>{value}</p>
+                                    <p style={{ margin: 0, color: accentDark, fontSize: "15px", lineHeight: "1.6" }}>{value}</p>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Actions */}
-                        <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+                        <div style={{ display: "flex", gap: "16px", marginTop: "32px" }}>
                             <button className="outline-btn" onClick={reset} style={{
-                                flex: 1, padding: "12px",
-                                background: "transparent", color: accent,
-                                border: `2px solid ${accentMid}50`, borderRadius: "12px",
-                                fontSize: "14px", fontFamily: "'Playfair Display', Georgia, serif",
+                                flex: 1, padding: "16px",
+                                background: "rgba(255,255,255,0.5)", color: accent,
+                                border: `2px solid ${accentMid}50`, borderRadius: "16px",
+                                fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
                                 cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
                             }}>
                                 {isKen ? "⚡ Try Again" : "✨ Try Again"}
                             </button>
                             <button className="outline-btn" onClick={fullReset} style={{
-                                flex: 1, padding: "12px",
-                                background: "transparent", color: accent,
-                                border: `2px solid ${accentMid}50`, borderRadius: "12px",
-                                fontSize: "14px", fontFamily: "'Playfair Display', Georgia, serif",
+                                flex: 1, padding: "16px",
+                                background: "rgba(255,255,255,0.5)", color: accent,
+                                border: `2px solid ${accentMid}50`, borderRadius: "16px",
+                                fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
                                 cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
                             }}>
                                 Switch
@@ -505,7 +425,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 )}
             </div>
 
-            <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.5, textAlign: "center" }}>
+            <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.6, textAlign: "center" }}>
                 Powered by Google Gemini · Barbieland {isKen ? "⚡" : "💗"}
             </p>
         </div>
