@@ -22,10 +22,11 @@ const deriveStyleBucket = (answers) => {
     return scores[0]?.score > 0 ? scores[0].style : "glam";
 };
 
-const buildBarbieImagePrompt = (resultData, styleBucket, skinTone) => {
+const buildDollImagePrompt = (resultData, styleBucket, skinTone, isKen) => {
     const toneLabel = SKIN_TONE_LABELS[skinTone] || "medium skin tone";
+    const dollType = isKen ? "Ken-inspired fashion doll" : "Barbie-inspired fashion doll";
     return [
-        "Barbie-inspired fashion doll",
+        dollType,
         toneLabel,
         `${styleBucket} style`,
         `career concept ${resultData.dreamJob}`,
@@ -80,13 +81,13 @@ export default function BarbieKenGenerator() {
         setTimeout(() => setSparkles([]), 2200);
     };
 
-    const requestBarbieImage = async (resultData, styleBucket) => {
+    const requestDollImage = async (resultData, styleBucket) => {
         if (!resultData || !skinTone) return;
         setGeneratingImage(true);
         setImageError(null);
 
         try {
-            const prompt = buildBarbieImagePrompt(resultData, styleBucket, skinTone);
+            const prompt = buildDollImagePrompt(resultData, styleBucket, skinTone, isKen);
             const response = await fetch("/api/generate-image", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -115,8 +116,8 @@ export default function BarbieKenGenerator() {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
             return;
         }
-        if (!isKen && !skinTone) {
-            setError("Choose a skin tone so we can generate your Barbie image ✨");
+        if (!skinTone) {
+            setError(`Choose a skin tone so we can generate your ${isKen ? "Ken" : "Barbie"} image ✨`);
             return;
         }
 
@@ -191,14 +192,9 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 throw new Error("The Dreamhouse had a glitch! Please try again. ✨");
             }
 
-            if (!isKen) {
-                const styleBucket = deriveStyleBucket(answers);
-                setSelectedStyleBucket(styleBucket);
-                await requestBarbieImage(parsed, styleBucket);
-            } else {
-                setSelectedStyleBucket(null);
-                setGeneratedBarbieImage(null);
-            }
+            const styleBucket = deriveStyleBucket(answers);
+            setSelectedStyleBucket(styleBucket);
+            await requestDollImage(parsed, styleBucket);
 
             setResult(parsed);
             triggerSparkles();
@@ -421,39 +417,37 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                 : "4 quick answers -> we'll reveal your Barbie alter ego 🌸"}
                         </p>
 
-                        {!isKen && (
-                            <div style={{ marginBottom: "18px" }}>
-                                <label style={{ display: "block", color: accentDark, fontWeight: "bold", marginBottom: "8px", fontSize: "14px" }}>
-                                    🎨 Choose skin tone for your Barbie image
-                                </label>
-                                <div style={{ display: "flex", gap: "8px" }}>
-                                    {[
-                                        { key: "light", label: "Light" },
-                                        { key: "medium", label: "Medium" },
-                                        { key: "deep", label: "Deep" },
-                                    ].map(({ key, label }) => (
-                                        <button
-                                            key={key}
-                                            type="button"
-                                            onClick={() => setSkinTone(key)}
-                                            style={{
-                                                flex: 1,
-                                                padding: "10px 8px",
-                                                borderRadius: "10px",
-                                                border: `2px solid ${accentMid}55`,
-                                                background: skinTone === key ? `linear-gradient(135deg, ${accentMid}, ${accentDark})` : "rgba(255,255,255,0.6)",
-                                                color: skinTone === key ? "white" : accentDark,
-                                                fontWeight: "bold",
-                                                fontFamily: "'Playfair Display', Georgia, serif",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
+                        <div style={{ marginBottom: "18px" }}>
+                            <label style={{ display: "block", color: accentDark, fontWeight: "bold", marginBottom: "8px", fontSize: "14px" }}>
+                                🎨 Choose skin tone for your {isKen ? "Ken" : "Barbie"} image
+                            </label>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                                {[
+                                    { key: "light", label: "Light" },
+                                    { key: "medium", label: "Medium" },
+                                    { key: "deep", label: "Deep" },
+                                ].map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => setSkinTone(key)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 8px",
+                                            borderRadius: "10px",
+                                            border: `2px solid ${accentMid}55`,
+                                            background: skinTone === key ? `linear-gradient(135deg, ${accentMid}, ${accentDark})` : "rgba(255,255,255,0.6)",
+                                            color: skinTone === key ? "white" : accentDark,
+                                            fontWeight: "bold",
+                                            fontFamily: "'Playfair Display', Georgia, serif",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
                             </div>
-                        )}
+                        </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                             {questions.map(({ field, label, placeholder }) => (
@@ -506,55 +500,53 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             </p>
                         </div>
 
-                        {!isKen && (
-                            <div style={{ marginBottom: "22px", textAlign: "center" }}>
-                                {generatedBarbieImage && (
-                                    <img
-                                        src={generatedBarbieImage}
-                                        alt="Generated Barbie"
-                                        style={{
-                                            width: "100%",
-                                            maxWidth: "320px",
-                                            borderRadius: "18px",
-                                            border: `1.5px solid ${accentMid}35`,
-                                            background: "rgba(255,255,255,0.7)",
-                                            boxShadow: `0 8px 24px ${accentMid}30`,
-                                        }}
-                                    />
-                                )}
-                                {generatingImage && (
-                                    <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
-                                        Generating image...
-                                    </p>
-                                )}
-                                {imageError && (
-                                    <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
-                                        {imageError}
-                                    </p>
-                                )}
-                                <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
-                                    Barbie style match: {selectedStyleBucket || "glam"} · {skinTone}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => requestBarbieImage(result, selectedStyleBucket || "glam")}
-                                    disabled={generatingImage}
+                        <div style={{ marginBottom: "22px", textAlign: "center" }}>
+                            {generatedBarbieImage && (
+                                <img
+                                    src={generatedBarbieImage}
+                                    alt={`Generated ${isKen ? "Ken" : "Barbie"}`}
                                     style={{
-                                        marginTop: "10px",
-                                        padding: "8px 12px",
-                                        borderRadius: "10px",
-                                        border: `1.5px solid ${accentMid}55`,
-                                        background: "rgba(255,255,255,0.65)",
-                                        color: accentDark,
-                                        fontWeight: "bold",
-                                        fontFamily: "'Playfair Display', Georgia, serif",
-                                        cursor: generatingImage ? "not-allowed" : "pointer",
+                                        width: "100%",
+                                        maxWidth: "320px",
+                                        borderRadius: "18px",
+                                        border: `1.5px solid ${accentMid}35`,
+                                        background: "rgba(255,255,255,0.7)",
+                                        boxShadow: `0 8px 24px ${accentMid}30`,
                                     }}
-                                >
-                                    {generatingImage ? "Generating..." : "Regenerate Image"}
-                                </button>
-                            </div>
-                        )}
+                                />
+                            )}
+                            {generatingImage && (
+                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
+                                    Generating image...
+                                </p>
+                            )}
+                            {imageError && (
+                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
+                                    {imageError}
+                                </p>
+                            )}
+                            <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
+                                {isKen ? "Ken" : "Barbie"} style match: {selectedStyleBucket || "glam"} · {skinTone}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => requestDollImage(result, selectedStyleBucket || "glam")}
+                                disabled={generatingImage}
+                                style={{
+                                    marginTop: "10px",
+                                    padding: "8px 12px",
+                                    borderRadius: "10px",
+                                    border: `1.5px solid ${accentMid}55`,
+                                    background: "rgba(255,255,255,0.65)",
+                                    color: accentDark,
+                                    fontWeight: "bold",
+                                    fontFamily: "'Playfair Display', Georgia, serif",
+                                    cursor: generatingImage ? "not-allowed" : "pointer",
+                                }}
+                            >
+                                {generatingImage ? "Generating..." : `Regenerate ${isKen ? "Ken" : "Barbie"} Image`}
+                            </button>
+                        </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             {[
