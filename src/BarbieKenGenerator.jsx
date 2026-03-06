@@ -1,9 +1,75 @@
 import { useState } from "react";
 
+const BARBIE_LIBRARY = {
+    light: {
+        glam: [
+            "/images/barbies/barbie-light-glam-1.png",
+            "/images/barbies/barbie-light-glam-2.png",
+        ],
+        power: [
+            "/images/barbies/barbie-light-power-1.png",
+            "/images/barbies/barbie-light-power-2.png",
+        ],
+        creative: [
+            "/images/barbies/barbie-light-creative-1.png",
+            "/images/barbies/barbie-light-creative-2.png",
+        ],
+    },
+    medium: {
+        glam: [
+            "/images/barbies/barbie-medium-glam-1.png",
+            "/images/barbies/barbie-medium-glam-2.png",
+        ],
+        power: [
+            "/images/barbies/barbie-medium-power-1.png",
+            "/images/barbies/barbie-medium-power-2.png",
+        ],
+        creative: [
+            "/images/barbies/barbie-medium-creative-1.png",
+            "/images/barbies/barbie-medium-creative-2.png",
+        ],
+    },
+    deep: {
+        glam: [
+            "/images/barbies/barbie-deep-glam-1.png",
+            "/images/barbies/barbie-deep-glam-2.png",
+        ],
+        power: [
+            "/images/barbies/barbie-deep-power-1.png",
+            "/images/barbies/barbie-deep-power-2.png",
+        ],
+        creative: [
+            "/images/barbies/barbie-deep-creative-1.png",
+            "/images/barbies/barbie-deep-creative-2.png",
+        ],
+    },
+};
+
+const STYLE_KEYWORDS = {
+    glam: ["glam", "fabulous", "fashion", "style", "chic", "luxury", "elegant", "beauty", "sparkle", "designer"],
+    power: ["leader", "manager", "director", "executive", "ambitious", "focused", "organized", "strategy", "boss", "confident"],
+    creative: ["creative", "artist", "design", "music", "dance", "photo", "film", "paint", "writer", "maker"],
+};
+
+const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+
+const deriveStyleBucket = (answers) => {
+    const text = Object.values(answers).join(" ").toLowerCase();
+    const scores = Object.entries(STYLE_KEYWORDS).map(([style, keywords]) => ({
+        style,
+        score: keywords.reduce((count, keyword) => count + (text.includes(keyword) ? 1 : 0), 0),
+    }));
+    scores.sort((a, b) => b.score - a.score);
+    return scores[0]?.score > 0 ? scores[0].style : "glam";
+};
+
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
+    const [skinTone, setSkinTone] = useState("");
     const [result, setResult] = useState(null);
+    const [selectedBarbieImage, setSelectedBarbieImage] = useState(null);
+    const [selectedStyleBucket, setSelectedStyleBucket] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
@@ -36,6 +102,10 @@ export default function BarbieKenGenerator() {
     const generateName = async () => {
         if (!answers.job || !answers.vibe || !answers.trait || !answers.hobby) {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
+            return;
+        }
+        if (!isKen && !skinTone) {
+            setError("Choose a skin tone so we can match your Barbie image ✨");
             return;
         }
         setError(null);
@@ -107,6 +177,16 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 throw new Error("The Dreamhouse had a glitch! Please try again. ✨");
             }
 
+            if (!isKen) {
+                const styleBucket = deriveStyleBucket(answers);
+                const options = BARBIE_LIBRARY[skinTone]?.[styleBucket] || [];
+                setSelectedStyleBucket(styleBucket);
+                setSelectedBarbieImage(options.length ? pickRandom(options) : null);
+            } else {
+                setSelectedStyleBucket(null);
+                setSelectedBarbieImage(null);
+            }
+
             setResult(parsed);
             triggerSparkles();
 
@@ -124,12 +204,15 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
     const reset = () => {
         setResult(null);
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
+        setSelectedBarbieImage(null);
+        setSelectedStyleBucket(null);
         setError(null);
     };
 
     const fullReset = () => {
         reset();
         setGender(null);
+        setSkinTone("");
     };
 
     const inputStyle = {
@@ -328,6 +411,40 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                 : "4 quick answers → we'll reveal your Barbie alter ego 🌸"}
                         </p>
 
+                        {!isKen && (
+                            <div style={{ marginBottom: "18px" }}>
+                                <label style={{ display: "block", color: accentDark, fontWeight: "bold", marginBottom: "8px", fontSize: "14px" }}>
+                                    🎨 Choose skin tone for your Barbie image
+                                </label>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                    {[
+                                        { key: "light", label: "Light" },
+                                        { key: "medium", label: "Medium" },
+                                        { key: "deep", label: "Deep" },
+                                    ].map(({ key, label }) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setSkinTone(key)}
+                                            style={{
+                                                flex: 1,
+                                                padding: "10px 8px",
+                                                borderRadius: "10px",
+                                                border: `2px solid ${accentMid}55`,
+                                                background: skinTone === key ? `linear-gradient(135deg, ${accentMid}, ${accentDark})` : "rgba(255,255,255,0.6)",
+                                                color: skinTone === key ? "white" : accentDark,
+                                                fontWeight: "bold",
+                                                fontFamily: "'Playfair Display', Georgia, serif",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                             {questions.map(({ field, label, placeholder }) => (
                                 <div key={field}>
@@ -378,6 +495,26 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                 &ldquo;{result.tagline}&rdquo;
                             </p>
                         </div>
+
+                        {!isKen && selectedBarbieImage && (
+                            <div style={{ marginBottom: "22px", textAlign: "center" }}>
+                                <img
+                                    src={selectedBarbieImage}
+                                    alt="Matched Barbie"
+                                    style={{
+                                        width: "100%",
+                                        maxWidth: "300px",
+                                        borderRadius: "18px",
+                                        border: `1.5px solid ${accentMid}35`,
+                                        background: "rgba(255,255,255,0.7)",
+                                        boxShadow: `0 8px 24px ${accentMid}30`,
+                                    }}
+                                />
+                                <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
+                                    Barbie style match: {selectedStyleBucket || "glam"} · {skinTone}
+                                </p>
+                            </div>
+                        )}
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             {[
