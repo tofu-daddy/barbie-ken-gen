@@ -52,6 +52,11 @@ const STYLE_KEYWORDS = {
 };
 
 const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+const SKIN_TONE_LABEL = {
+    light: "light skin tone",
+    medium: "medium skin tone",
+    deep: "deep skin tone",
+};
 
 const deriveStyleBucket = (answers) => {
     const text = Object.values(answers).join(" ").toLowerCase();
@@ -70,6 +75,10 @@ export default function BarbieKenGenerator() {
     const [result, setResult] = useState(null);
     const [selectedBarbieImage, setSelectedBarbieImage] = useState(null);
     const [selectedStyleBucket, setSelectedStyleBucket] = useState(null);
+    const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+    const [generatingImage, setGeneratingImage] = useState(false);
+    const [imageError, setImageError] = useState(null);
+    const [imageMode, setImageMode] = useState("premade");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
@@ -97,6 +106,45 @@ export default function BarbieKenGenerator() {
         }));
         setSparkles(s);
         setTimeout(() => setSparkles([]), 2200);
+    };
+
+    const generateCustomImage = (resultData, styleBucket) => {
+        if (!resultData || isKen) return;
+
+        setGeneratingImage(true);
+        setImageError(null);
+
+        const seed = Math.floor(Math.random() * 1000000000);
+        const tone = SKIN_TONE_LABEL[skinTone] || "medium skin tone";
+        const prompt = [
+            "Barbie-inspired fashion doll",
+            tone,
+            `${styleBucket || "glam"} style`,
+            `name concept ${resultData.barbieName}`,
+            `tagline vibe ${resultData.tagline}`,
+            `outfit ${resultData.outfit}`,
+            `accessory ${resultData.accessory}`,
+            `career ${resultData.dreamJob}`,
+            "studio product photo",
+            "full-body fashion doll",
+            "clean light background",
+            "high detail",
+            "no text watermark",
+        ].join(", ");
+
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=768&height=1024&seed=${seed}&nologo=true`;
+        const probe = new Image();
+        probe.onload = () => {
+            setGeneratedImageUrl(url);
+            setImageMode("generated");
+            setGeneratingImage(false);
+        };
+        probe.onerror = () => {
+            setImageError("Custom image failed, showing premade Barbie instead.");
+            setImageMode("premade");
+            setGeneratingImage(false);
+        };
+        probe.src = url;
     };
 
     const generateName = async () => {
@@ -182,6 +230,10 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 const options = BARBIE_LIBRARY[skinTone]?.[styleBucket] || [];
                 setSelectedStyleBucket(styleBucket);
                 setSelectedBarbieImage(options.length ? pickRandom(options) : null);
+                setGeneratedImageUrl(null);
+                setImageMode("premade");
+                setImageError(null);
+                generateCustomImage(parsed, styleBucket);
             } else {
                 setSelectedStyleBucket(null);
                 setSelectedBarbieImage(null);
@@ -206,6 +258,10 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
         setSelectedBarbieImage(null);
         setSelectedStyleBucket(null);
+        setGeneratedImageUrl(null);
+        setGeneratingImage(false);
+        setImageError(null);
+        setImageMode("premade");
         setError(null);
     };
 
@@ -496,11 +552,11 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             </p>
                         </div>
 
-                        {!isKen && selectedBarbieImage && (
+                        {!isKen && (selectedBarbieImage || generatedImageUrl) && (
                             <div style={{ marginBottom: "22px", textAlign: "center" }}>
                                 <img
-                                    src={selectedBarbieImage}
-                                    alt="Matched Barbie"
+                                    src={imageMode === "generated" && generatedImageUrl ? generatedImageUrl : selectedBarbieImage}
+                                    alt={imageMode === "generated" ? "Generated Barbie" : "Matched Barbie"}
                                     style={{
                                         width: "100%",
                                         maxWidth: "300px",
@@ -511,8 +567,66 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                     }}
                                 />
                                 <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
-                                    Barbie style match: {selectedStyleBucket || "glam"} · {skinTone}
+                                    Barbie style match: {selectedStyleBucket || "glam"} · {skinTone} · {imageMode === "generated" ? "AI custom" : "premade"}
                                 </p>
+                                {imageError && (
+                                    <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#b91c1c" }}>
+                                        {imageError}
+                                    </p>
+                                )}
+                                <div style={{ display: "flex", gap: "8px", marginTop: "10px", justifyContent: "center" }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => generateCustomImage(result, selectedStyleBucket || "glam")}
+                                        disabled={generatingImage}
+                                        style={{
+                                            padding: "8px 12px",
+                                            borderRadius: "10px",
+                                            border: `1.5px solid ${accentMid}55`,
+                                            background: "rgba(255,255,255,0.65)",
+                                            color: accentDark,
+                                            fontWeight: "bold",
+                                            fontFamily: "'Playfair Display', Georgia, serif",
+                                            cursor: generatingImage ? "not-allowed" : "pointer",
+                                        }}
+                                    >
+                                        {generatingImage ? "Generating..." : "Remix AI Image"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setImageMode("premade")}
+                                        style={{
+                                            padding: "8px 12px",
+                                            borderRadius: "10px",
+                                            border: `1.5px solid ${accentMid}55`,
+                                            background: imageMode === "premade" ? accentLight : "rgba(255,255,255,0.65)",
+                                            color: accentDark,
+                                            fontWeight: "bold",
+                                            fontFamily: "'Playfair Display', Georgia, serif",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Use Premade
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => generatedImageUrl && setImageMode("generated")}
+                                        disabled={!generatedImageUrl}
+                                        style={{
+                                            padding: "8px 12px",
+                                            borderRadius: "10px",
+                                            border: `1.5px solid ${accentMid}55`,
+                                            background: imageMode === "generated" ? accentLight : "rgba(255,255,255,0.65)",
+                                            color: accentDark,
+                                            fontWeight: "bold",
+                                            fontFamily: "'Playfair Display', Georgia, serif",
+                                            cursor: generatedImageUrl ? "pointer" : "not-allowed",
+                                            opacity: generatedImageUrl ? 1 : 0.5,
+                                        }}
+                                    >
+                                        Use AI
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -563,7 +677,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             </div>
 
             <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.6, textAlign: "center" }}>
-                Powered by Google Gemini · Barbieland {isKen ? "⚡" : "💗"}
+                Powered by Google Gemini + Pollinations · Barbieland {isKen ? "⚡" : "💗"}
             </p>
         </div>
     );
