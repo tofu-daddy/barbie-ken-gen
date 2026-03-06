@@ -132,7 +132,11 @@ export default function BarbieKenGenerator() {
             "no text watermark",
         ].join(", ");
 
-        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=768&height=1024&seed=${seed}&nologo=true`;
+        const params = new URLSearchParams({
+            prompt,
+            seed: String(seed),
+        });
+        const url = `/api/generate-image?${params.toString()}`;
         const probe = new Image();
         probe.onload = () => {
             setGeneratedImageUrl(url);
