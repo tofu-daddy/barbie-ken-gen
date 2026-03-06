@@ -8,7 +8,7 @@ Live site: [sparkling-longma-75606c.netlify.app](https://sparkling-longma-75606c
 
 - Barbie or Ken mode with tailored prompts
 - AI-generated name, tagline, dream job, dream house, power move, outfit, and accessory
-- Image generation via [Pollinations.ai](https://pollinations.ai)
+- Premade Barbie image library matched to user selections
 - React + Vite frontend with a Netlify Function backend
 
 ## Local Development
