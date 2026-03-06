@@ -8,7 +8,7 @@ Live site: [sparkling-longma-75606c.netlify.app](https://sparkling-longma-75606c
 
 - Barbie or Ken mode with tailored prompts
 - AI-generated name, tagline, dream job, dream house, power move, outfit, and accessory
-- Premade Barbie image library matched to user selections
+- AI-generated Barbie image via Cloudflare Workers AI
 - React + Vite frontend with a Netlify Function backend
 
 ## Local Development
@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` uses `netlify dev`, which serves the app and the `/api/generate` function together.
+`npm run dev` uses `netlify dev`, which serves the app and Netlify Functions together.
 
 If needed, run frontend-only dev server:
 
@@ -33,6 +33,8 @@ npm run dev:vite
 Set this in Netlify Site settings (or locally for `netlify dev`):
 
 - `GEMINI_API_KEY`: Google Gemini API key used by `netlify/functions/generate.js`
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID used by `netlify/functions/generate-image.js`
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Workers AI permissions
 
 ## Deployment
 

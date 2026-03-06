@@ -1,57 +1,16 @@
 import { useState } from "react";
 
-const BARBIE_LIBRARY = {
-    light: {
-        glam: [
-            "/images/barbies/barbie-light-glam-1.png",
-            "/images/barbies/barbie-light-glam-2.png",
-        ],
-        power: [
-            "/images/barbies/barbie-light-power-1.png",
-            "/images/barbies/barbie-light-power-2.png",
-        ],
-        creative: [
-            "/images/barbies/barbie-light-creative-1.png",
-            "/images/barbies/barbie-light-creative-2.png",
-        ],
-    },
-    medium: {
-        glam: [
-            "/images/barbies/barbie-medium-glam-1.png",
-            "/images/barbies/barbie-medium-glam-2.png",
-        ],
-        power: [
-            "/images/barbies/barbie-medium-power-1.png",
-            "/images/barbies/barbie-medium-power-2.png",
-        ],
-        creative: [
-            "/images/barbies/barbie-medium-creative-1.png",
-            "/images/barbies/barbie-medium-creative-2.png",
-        ],
-    },
-    deep: {
-        glam: [
-            "/images/barbies/barbie-deep-glam-1.png",
-            "/images/barbies/barbie-deep-glam-2.png",
-        ],
-        power: [
-            "/images/barbies/barbie-deep-power-1.png",
-            "/images/barbies/barbie-deep-power-2.png",
-        ],
-        creative: [
-            "/images/barbies/barbie-deep-creative-1.png",
-            "/images/barbies/barbie-deep-creative-2.png",
-        ],
-    },
-};
-
 const STYLE_KEYWORDS = {
     glam: ["glam", "fabulous", "fashion", "style", "chic", "luxury", "elegant", "beauty", "sparkle", "designer"],
     power: ["leader", "manager", "director", "executive", "ambitious", "focused", "organized", "strategy", "boss", "confident"],
     creative: ["creative", "artist", "design", "music", "dance", "photo", "film", "paint", "writer", "maker"],
 };
 
-const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+const SKIN_TONE_LABELS = {
+    light: "light skin tone",
+    medium: "medium skin tone",
+    deep: "deep skin tone",
+};
 
 const deriveStyleBucket = (answers) => {
     const text = Object.values(answers).join(" ").toLowerCase();
@@ -63,15 +22,37 @@ const deriveStyleBucket = (answers) => {
     return scores[0]?.score > 0 ? scores[0].style : "glam";
 };
 
+const buildBarbieImagePrompt = (resultData, styleBucket, skinTone) => {
+    const toneLabel = SKIN_TONE_LABELS[skinTone] || "medium skin tone";
+    return [
+        "Barbie-inspired fashion doll",
+        toneLabel,
+        `${styleBucket} style`,
+        `career concept ${resultData.dreamJob}`,
+        `outfit ${resultData.outfit}`,
+        `accessory ${resultData.accessory}`,
+        `vibe ${resultData.tagline}`,
+        "studio product photo",
+        "full body",
+        "clean pastel backdrop",
+        "high detail",
+        "commercial toy photography",
+        "no text",
+        "no watermark",
+    ].join(", ");
+};
+
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
     const [skinTone, setSkinTone] = useState("");
     const [result, setResult] = useState(null);
-    const [selectedBarbieImage, setSelectedBarbieImage] = useState(null);
     const [selectedStyleBucket, setSelectedStyleBucket] = useState(null);
+    const [generatedBarbieImage, setGeneratedBarbieImage] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [generatingImage, setGeneratingImage] = useState(false);
     const [error, setError] = useState(null);
+    const [imageError, setImageError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
 
     const isKen = gender === "ken";
@@ -99,18 +80,51 @@ export default function BarbieKenGenerator() {
         setTimeout(() => setSparkles([]), 2200);
     };
 
+    const requestBarbieImage = async (resultData, styleBucket) => {
+        if (!resultData || !skinTone) return;
+        setGeneratingImage(true);
+        setImageError(null);
+
+        try {
+            const prompt = buildBarbieImagePrompt(resultData, styleBucket, skinTone);
+            const response = await fetch("/api/generate-image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt,
+                    seed: Math.floor(Math.random() * 1000000000),
+                }),
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.imageUrl) {
+                throw new Error(data.error || "Image generation failed");
+            }
+
+            setGeneratedBarbieImage(data.imageUrl);
+        } catch (e) {
+            setGeneratedBarbieImage(null);
+            setImageError(e.message || "Could not generate Barbie image right now.");
+        } finally {
+            setGeneratingImage(false);
+        }
+    };
+
     const generateName = async () => {
         if (!answers.job || !answers.vibe || !answers.trait || !answers.hobby) {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
             return;
         }
         if (!isKen && !skinTone) {
-            setError("Choose a skin tone so we can match your Barbie image ✨");
+            setError("Choose a skin tone so we can generate your Barbie image ✨");
             return;
         }
+
         setError(null);
+        setImageError(null);
         setLoading(true);
         setResult(null);
+        setGeneratedBarbieImage(null);
 
         const kenPrompt = `You are the official Ken Name Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
 
@@ -179,17 +193,15 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
             if (!isKen) {
                 const styleBucket = deriveStyleBucket(answers);
-                const options = BARBIE_LIBRARY[skinTone]?.[styleBucket] || [];
                 setSelectedStyleBucket(styleBucket);
-                setSelectedBarbieImage(options.length ? pickRandom(options) : null);
+                await requestBarbieImage(parsed, styleBucket);
             } else {
                 setSelectedStyleBucket(null);
-                setSelectedBarbieImage(null);
+                setGeneratedBarbieImage(null);
             }
 
             setResult(parsed);
             triggerSparkles();
-
         } catch (e) {
             if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
                 setError("The Dreamhouse is currently at capacity! 🎀\n\nGoogle's free AI tier has a limit. Please wait about 30-60 seconds and try again! ✨");
@@ -204,8 +216,9 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
     const reset = () => {
         setResult(null);
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
-        setSelectedBarbieImage(null);
+        setGeneratedBarbieImage(null);
         setSelectedStyleBucket(null);
+        setImageError(null);
         setError(null);
     };
 
@@ -292,9 +305,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-8px); }
         }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
         .q-input:focus {
           border-color: ${accentMid} !important;
           box-shadow: 0 0 0 3px ${accentLight} !important;
@@ -315,7 +325,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 <div key={s.id} style={{
                     position: "fixed", left: `${s.x}%`, top: `${s.y}%`,
                     fontSize: `${s.size}px`,
-                    animation: `sparkle 1.8s ease-out forwards`,
+                    animation: "sparkle 1.8s ease-out forwards",
                     animationDelay: `${s.delay}s`,
                     pointerEvents: "none", zIndex: 100,
                 }}>{s.icon}</div>
@@ -366,7 +376,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 {gender === null && (
                     <div style={{ textAlign: "center" }}>
                         <p style={{ color: "#7c3aed", marginBottom: "28px", fontSize: "15px", fontStyle: "italic" }}>
-                            First things first — who are you in Barbieland?
+                            First things first - who are you in Barbieland?
                         </p>
                         <div style={{ display: "flex", gap: "16px", justifyContent: "center" }}>
                             {[
@@ -407,8 +417,8 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                         <p style={{ color: accentDark, marginBottom: "22px", fontSize: "14px", textAlign: "center", fontStyle: "italic" }}>
                             {isKen
-                                ? "4 quick answers → we'll reveal your Ken identity ✨"
-                                : "4 quick answers → we'll reveal your Barbie alter ego 🌸"}
+                                ? "4 quick answers -> we'll reveal your Ken identity ✨"
+                                : "4 quick answers -> we'll reveal your Barbie alter ego 🌸"}
                         </p>
 
                         {!isKen && (
@@ -496,23 +506,53 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             </p>
                         </div>
 
-                        {!isKen && selectedBarbieImage && (
+                        {!isKen && (
                             <div style={{ marginBottom: "22px", textAlign: "center" }}>
-                                <img
-                                    src={selectedBarbieImage}
-                                    alt="Matched Barbie"
-                                    style={{
-                                        width: "100%",
-                                        maxWidth: "300px",
-                                        borderRadius: "18px",
-                                        border: `1.5px solid ${accentMid}35`,
-                                        background: "rgba(255,255,255,0.7)",
-                                        boxShadow: `0 8px 24px ${accentMid}30`,
-                                    }}
-                                />
+                                {generatedBarbieImage && (
+                                    <img
+                                        src={generatedBarbieImage}
+                                        alt="Generated Barbie"
+                                        style={{
+                                            width: "100%",
+                                            maxWidth: "320px",
+                                            borderRadius: "18px",
+                                            border: `1.5px solid ${accentMid}35`,
+                                            background: "rgba(255,255,255,0.7)",
+                                            boxShadow: `0 8px 24px ${accentMid}30`,
+                                        }}
+                                    />
+                                )}
+                                {generatingImage && (
+                                    <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
+                                        Generating image...
+                                    </p>
+                                )}
+                                {imageError && (
+                                    <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
+                                        {imageError}
+                                    </p>
+                                )}
                                 <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
                                     Barbie style match: {selectedStyleBucket || "glam"} · {skinTone}
                                 </p>
+                                <button
+                                    type="button"
+                                    onClick={() => requestBarbieImage(result, selectedStyleBucket || "glam")}
+                                    disabled={generatingImage}
+                                    style={{
+                                        marginTop: "10px",
+                                        padding: "8px 12px",
+                                        borderRadius: "10px",
+                                        border: `1.5px solid ${accentMid}55`,
+                                        background: "rgba(255,255,255,0.65)",
+                                        color: accentDark,
+                                        fontWeight: "bold",
+                                        fontFamily: "'Playfair Display', Georgia, serif",
+                                        cursor: generatingImage ? "not-allowed" : "pointer",
+                                    }}
+                                >
+                                    {generatingImage ? "Generating..." : "Regenerate Image"}
+                                </button>
                             </div>
                         )}
 
@@ -563,7 +603,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             </div>
 
             <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.6, textAlign: "center" }}>
-                Powered by Google Gemini · Barbieland {isKen ? "⚡" : "💗"}
+                Powered by Google Gemini + Cloudflare Workers AI · Barbieland {isKen ? "⚡" : "💗"}
             </p>
         </div>
     );
