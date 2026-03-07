@@ -527,18 +527,18 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                 {result && (
                     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
+                        <div style={{ textAlign: "center", marginBottom: "24px", padding: "8px 0" }}>
+                            <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
+                            <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
+                                {result.barbieName}
+                            </h2>
+                            <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 12px", lineHeight: "1.4" }}>
+                                &ldquo;{result.tagline}&rdquo;
+                            </p>
+                        </div>
+
                         <div className="result-layout">
                             <div className="result-main">
-                                <div style={{ textAlign: "center", marginBottom: "24px", padding: "8px 0" }}>
-                                    <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
-                                    <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
-                                        {result.barbieName}
-                                    </h2>
-                                    <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 12px", lineHeight: "1.4" }}>
-                                        &ldquo;{result.tagline}&rdquo;
-                                    </p>
-                                </div>
-
                                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                                     {[
                                         { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
