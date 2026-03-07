@@ -612,24 +612,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                     <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
                                         {isKen ? "Ken" : "Barbie"} style match: {selectedStyleBucket || "glam"} · {skinTone}
                                     </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => requestDollImage(result, selectedStyleBucket || "glam")}
-                                        disabled={generatingImage}
-                                        style={{
-                                            marginTop: "10px",
-                                            padding: "8px 12px",
-                                            borderRadius: "10px",
-                                            border: `1.5px solid ${accentMid}55`,
-                                            background: "rgba(255,255,255,0.65)",
-                                            color: accentDark,
-                                            fontWeight: "bold",
-                                            fontFamily: "'Playfair Display', Georgia, serif",
-                                            cursor: generatingImage ? "not-allowed" : "pointer",
-                                        }}
-                                    >
-                                        {generatingImage ? "Generating..." : `Regenerate ${isKen ? "Ken" : "Barbie"} Image`}
-                                    </button>
                                 </div>
                             </div>
                         </div>
