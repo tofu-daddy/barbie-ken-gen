@@ -398,7 +398,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 backdropFilter: "blur(14px)",
                 borderRadius: "24px",
                 padding: "36px",
-                maxWidth: "560px",
+                maxWidth: "1000px",
                 width: "100%",
                 border: `2px solid rgba(${isKen ? "59,130,246" : "236,72,153"},0.25)`,
                 boxShadow: `0 20px 60px rgba(${isKen ? "30,58,138" : "157,23,77"},0.12), 0 4px 16px rgba(${isKen ? "59,130,246" : "236,72,153"},0.1)`,
