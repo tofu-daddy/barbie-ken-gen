@@ -25,8 +25,25 @@ const deriveStyleBucket = (answers) => {
 const buildDollImagePrompt = (resultData, styleBucket, skinTone, isKen) => {
     const toneLabel = SKIN_TONE_LABELS[skinTone] || "medium skin tone";
     const dollType = isKen ? "Ken-inspired fashion doll" : "Barbie-inspired fashion doll";
+    const genderDirectives = isKen
+        ? [
+            "male fashion doll",
+            "masculine facial structure",
+            "strong jawline",
+            "masculine eyebrows",
+            "no feminine facial features",
+            "not female-presenting",
+        ]
+        : [
+            "female fashion doll",
+            "feminine facial structure",
+            "soft feminine makeup",
+            "no masculine facial features",
+            "not male-presenting",
+        ];
     return [
         dollType,
+        ...genderDirectives,
         toneLabel,
         `${styleBucket} style`,
         `career concept ${resultData.dreamJob}`,
@@ -127,7 +144,7 @@ export default function BarbieKenGenerator() {
         setResult(null);
         setGeneratedBarbieImage(null);
 
-        const kenPrompt = `You are the official Ken Name Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
+        const kenPrompt = `You are the official Ken Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
 
 User answers:
 - Job/role: ${answers.job}
@@ -146,7 +163,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
   "accessory": "One iconic accessory this Ken is holding or wearing"
 }`;
 
-        const barbiePrompt = `You are the official Barbie Name Generator. Based on the user's answers, create their unique Barbie identity. Be playful, fun, and on-brand — confident, capable, and iconic.
+        const barbiePrompt = `You are the official Barbie Generator. Based on the user's answers, create their unique Barbie identity. Be playful, fun, and on-brand — confident, capable, and iconic.
 
 User answers:
 - Job/role: ${answers.job}
@@ -345,7 +362,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                     fontSize: "clamp(24px, 5vw, 42px)", fontWeight: "900",
                     color: accentDark, margin: "0 0 8px", letterSpacing: "-0.5px",
                 }}>
-                    {gender === null ? "Barbie · Ken Generator" : isKen ? "Ken Name Generator" : "Barbie Name Generator"}
+                    {gender === null ? "Barbie · Ken Generator" : isKen ? "Ken Generator" : "Barbie Generator"}
                 </h1>
                 <p style={{ color: accent, fontSize: "15px", margin: 0, fontStyle: "italic" }}>
                     {gender === null
