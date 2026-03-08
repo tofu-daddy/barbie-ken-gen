@@ -1,14 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const isRateLimitError = (message = "") => /429|rate|quota|resource exhausted/i.test(message);
-const isRetryableServerError = (message = "") => /500|502|503|504|unavailable|timeout|internal/i.test(message);
-const withTimeout = (promise, ms, label = "timeout") =>
-    Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} after ${ms}ms`)), ms)),
-    ]);
-
 export default async (req, context) => {
     if (req.method !== "POST") {
         return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -38,77 +29,47 @@ export default async (req, context) => {
 
         // Models discovered from user's API key logs
         const modelsToTry = [
-            "gemini-2.0-flash",
-            "gemini-flash-latest",
+            "gemini-flash-latest",     // Usually reliable for free tier
+            "gemini-2.0-flash",       // Modern, listed in logs
+            "gemini-pro-latest",      // Pro version fallback
+            "gemini-2.0-flash-lite"   // Lightweight fallback
         ];
 
         let lastError = null;
-        let sawRateLimit = false;
-        let sawTransientFailure = false;
 
         for (const modelName of modelsToTry) {
-            const model = genAI.getGenerativeModel({ model: modelName });
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent({
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        maxOutputTokens: max_tokens,
+                        responseMimeType: "application/json"
+                    },
+                });
+                const text = result.response.text();
 
-            for (let attempt = 1; attempt <= 2; attempt += 1) {
-                try {
-                    const result = await withTimeout(
-                        model.generateContent({
-                            contents: [{ role: "user", parts: [{ text: prompt }] }],
-                            generationConfig: {
-                                maxOutputTokens: max_tokens,
-                                responseMimeType: "application/json"
-                            },
-                        }),
-                        8000,
-                        `Gemini ${modelName}`
-                    );
-                    const text = result.response.text();
+                return new Response(JSON.stringify({ text, modelUsed: modelName }), {
+                    status: 200,
+                    headers: { "Content-Type": "application/json" }
+                });
+            } catch (e) {
+                console.warn(`Failed with ${modelName}:`, e.message);
+                lastError = e;
 
+                // If we get a 429, it's a quota issue. Stop and tell the user.
+                if (e.message.includes("429") || e.message.includes("quota")) {
                     return new Response(JSON.stringify({
-                        text,
-                        modelUsed: modelName,
-                        attempts: attempt
+                        error: "The Dreamhouse is currently at capacity! 🎀",
+                        errorType: "QUOTA_EXCEEDED",
+                        details: e.message,
+                        hint: "Google's free tier has a limit. Please wait about 30-60 seconds and try again! ✨"
                     }), {
-                        status: 200,
+                        status: 429,
                         headers: { "Content-Type": "application/json" }
                     });
-                } catch (e) {
-                    const message = e?.message || "Unknown Gemini error";
-                    console.warn(`Failed with ${modelName} (attempt ${attempt}/3):`, message);
-                    lastError = e;
-
-                    const retryable = isRateLimitError(message) || isRetryableServerError(message);
-                    if (isRateLimitError(message)) sawRateLimit = true;
-                    if (isRetryableServerError(message)) sawTransientFailure = true;
-
-                    if (!retryable || attempt === 2) break;
-                    await sleep(350 * attempt);
                 }
             }
-        }
-
-        if (sawRateLimit) {
-            return new Response(JSON.stringify({
-                error: "The Dreamhouse is currently at capacity! 🎀",
-                errorType: "QUOTA_EXCEEDED",
-                details: lastError?.message,
-                hint: "Google's free tier has a limit. Please wait about 30-60 seconds and try again! ✨"
-            }), {
-                status: 429,
-                headers: { "Content-Type": "application/json" }
-            });
-        }
-
-        if (sawTransientFailure) {
-            return new Response(JSON.stringify({
-                error: "Temporary Dreamhouse server issue",
-                errorType: "TRANSIENT_FAILURE",
-                details: lastError?.message,
-                hint: "Please try again in a few seconds. ✨"
-            }), {
-                status: 503,
-                headers: { "Content-Type": "application/json" }
-            });
         }
 
         return new Response(JSON.stringify({

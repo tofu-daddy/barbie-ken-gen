@@ -1,112 +1,11 @@
 import { useState } from "react";
 
-const STYLE_KEYWORDS = {
-    glam: ["glam", "fabulous", "fashion", "style", "chic", "luxury", "elegant", "beauty", "sparkle", "designer"],
-    power: ["leader", "manager", "director", "executive", "ambitious", "focused", "organized", "strategy", "boss", "confident"],
-    creative: ["creative", "artist", "design", "music", "dance", "photo", "film", "paint", "writer", "maker"],
-};
-
-const SKIN_TONE_LABELS = {
-    light: "light skin tone",
-    medium: "medium skin tone",
-    deep: "deep skin tone",
-};
-
-const deriveStyleBucket = (answers) => {
-    const text = Object.values(answers).join(" ").toLowerCase();
-    const scores = Object.entries(STYLE_KEYWORDS).map(([style, keywords]) => ({
-        style,
-        score: keywords.reduce((count, keyword) => count + (text.includes(keyword) ? 1 : 0), 0),
-    }));
-    scores.sort((a, b) => b.score - a.score);
-    return scores[0]?.score > 0 ? scores[0].style : "glam";
-};
-
-const buildDollImagePrompt = (resultData, styleBucket, skinTone, isKen) => {
-    const toneLabel = SKIN_TONE_LABELS[skinTone] || "medium skin tone";
-    const dollType = isKen ? "Ken-inspired fashion doll" : "Barbie-inspired fashion doll";
-    const genderDirectives = isKen
-        ? [
-            "male fashion doll",
-            "masculine facial structure",
-            "strong jawline",
-            "masculine eyebrows",
-            "no feminine facial features",
-            "not female-presenting",
-        ]
-        : [
-            "female fashion doll",
-            "feminine facial structure",
-            "soft feminine makeup",
-            "no masculine facial features",
-            "not male-presenting",
-        ];
-    return [
-        dollType,
-        ...genderDirectives,
-        toneLabel,
-        `${styleBucket} style`,
-        `career concept ${resultData.dreamJob}`,
-        `outfit ${resultData.outfit}`,
-        `accessory ${resultData.accessory}`,
-        `vibe ${resultData.tagline}`,
-        "studio product photo",
-        "full body",
-        "clean pastel backdrop",
-        "high detail",
-        "commercial toy photography",
-        "no text",
-        "no watermark",
-    ].join(", ");
-};
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const parseApiResponse = async (response) => {
-    const raw = await response.text();
-    try {
-        return { data: JSON.parse(raw), raw };
-    } catch {
-        return { data: null, raw };
-    }
-};
-const buildFallbackProfile = (answers, isKen) => {
-    const cleanJob = (answers.job || "").trim() || (isKen ? "Dream Role" : "Dream Career");
-    const cleanVibe = (answers.vibe || "").trim() || (isKen ? "chill focus" : "iconic confidence");
-    const cleanTrait = (answers.trait || "").trim() || (isKen ? "steady confidence" : "bold confidence");
-    const cleanHobby = (answers.hobby || "").trim() || (isKen ? "weekend adventures" : "creative escapes");
-
-    return {
-        barbieName: `${cleanJob} ${isKen ? "Ken" : "Barbie"}`,
-        tagline: isKen
-            ? `Built on ${cleanVibe} energy with ${cleanTrait}.`
-            : `Powered by ${cleanVibe} and ${cleanTrait}.`,
-        dreamJob: cleanJob,
-        dreamHouse: isKen
-            ? `A modern space built for ${cleanHobby} and easy living. It is calm, playful, and always guest-ready.`
-            : `A stylish space designed for ${cleanHobby} and big goals. It is bright, bold, and ready for anything.`,
-        powermove: isKen
-            ? `Turns ${cleanTrait} into momentum when the team needs it most.`
-            : `Turns ${cleanTrait} into momentum and makes hard things look easy.`,
-        outfit: isKen
-            ? `A clean tailored look with pieces inspired by ${cleanVibe}.`
-            : `A polished statement look inspired by ${cleanVibe}.`,
-        accessory: isKen
-            ? `A signature piece inspired by ${cleanHobby}.`
-            : `A signature accessory inspired by ${cleanHobby}.`,
-    };
-};
-
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
-    const [skinTone, setSkinTone] = useState("");
     const [result, setResult] = useState(null);
-    const [selectedStyleBucket, setSelectedStyleBucket] = useState(null);
-    const [generatedBarbieImage, setGeneratedBarbieImage] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [generatingImage, setGeneratingImage] = useState(false);
     const [error, setError] = useState(null);
-    const [imageError, setImageError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
 
     const isKen = gender === "ken";
@@ -134,53 +33,16 @@ export default function BarbieKenGenerator() {
         setTimeout(() => setSparkles([]), 2200);
     };
 
-    const requestDollImage = async (resultData, styleBucket) => {
-        if (!resultData || !skinTone) return;
-        setGeneratingImage(true);
-        setImageError(null);
-
-        try {
-            const prompt = buildDollImagePrompt(resultData, styleBucket, skinTone, isKen);
-            const response = await fetch("/api/generate-image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt,
-                    seed: Math.floor(Math.random() * 1000000000),
-                }),
-            });
-
-            const { data, raw } = await parseApiResponse(response);
-            if (!response.ok || !data?.imageUrl) {
-                throw new Error(data?.error || `Image generation failed (${response.status})${raw?.startsWith("<") ? " — temporary upstream HTML error" : ""}`);
-            }
-
-            setGeneratedBarbieImage(data.imageUrl);
-        } catch (e) {
-            setGeneratedBarbieImage(null);
-            setImageError(e.message || "Could not generate Barbie image right now.");
-        } finally {
-            setGeneratingImage(false);
-        }
-    };
-
     const generateName = async () => {
         if (!answers.job || !answers.vibe || !answers.trait || !answers.hobby) {
             setError(`Fill in all the fields${isKen ? ", Ken! ⚡" : ", Barbie! ✨"}`);
             return;
         }
-        if (!skinTone) {
-            setError(`Choose a skin tone so we can generate your ${isKen ? "Ken" : "Barbie"} image ✨`);
-            return;
-        }
-
         setError(null);
-        setImageError(null);
         setLoading(true);
         setResult(null);
-        setGeneratedBarbieImage(null);
 
-        const kenPrompt = `You are the official Ken Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
+        const kenPrompt = `You are the official Ken Name Generator. Based on the user's answers, create their unique Ken identity from the Barbie universe. Be playful, fun, and on-brand — Ken is confident, a little goofy, deeply passionate about his interests.
 
 User answers:
 - Job/role: ${answers.job}
@@ -199,7 +61,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
   "accessory": "One iconic accessory this Ken is holding or wearing"
 }`;
 
-        const barbiePrompt = `You are the official Barbie Generator. Based on the user's answers, create their unique Barbie identity. Be playful, fun, and on-brand — confident, capable, and iconic.
+        const barbiePrompt = `You are the official Barbie Name Generator. Based on the user's answers, create their unique Barbie identity. Be playful, fun, and on-brand — confident, capable, and iconic.
 
 User answers:
 - Job/role: ${answers.job}
@@ -219,26 +81,16 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 }`;
 
         try {
-            let response = null;
-            let data = null;
-            for (let attempt = 1; attempt <= 2; attempt += 1) {
-                response = await fetch("/api/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        prompt: isKen ? kenPrompt : barbiePrompt,
-                        max_tokens: 1000,
-                    }),
-                });
-                const parsed = await parseApiResponse(response);
-                data = parsed.data || {
-                    error: parsed.raw?.startsWith("<")
-                        ? `Server error ${response.status} (temporary HTML gateway response)`
-                        : `Server error ${response.status}`,
-                };
-                if (response.ok || ![502, 503, 504].includes(response.status) || attempt === 2) break;
-                await sleep(600);
-            }
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: isKen ? kenPrompt : barbiePrompt,
+                    max_tokens: 1000,
+                }),
+            });
+
+            const data = await response.json();
 
             if (!response.ok) {
                 throw new Error(data.error || `Server error ${response.status}`);
@@ -256,18 +108,14 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             }
 
             setResult(parsed);
-            const styleBucket = deriveStyleBucket(answers);
-            setSelectedStyleBucket(styleBucket);
-            requestDollImage(parsed, styleBucket);
             triggerSparkles();
+
         } catch (e) {
-            const fallback = buildFallbackProfile(answers, isKen);
-            setResult(fallback);
-            setSelectedStyleBucket(deriveStyleBucket(answers));
-            setGeneratedBarbieImage(null);
-            setImageError(null);
-            setError("AI is busy right now, so we generated an instant fallback profile. ✨");
-            triggerSparkles();
+            if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
+                setError("The Dreamhouse is currently at capacity! 🎀\n\nGoogle's free AI tier has a limit. Please wait about 30-60 seconds and try again! ✨");
+            } else {
+                setError(e.message || "Something went wrong in the Dreamhouse. Try again! ✨");
+            }
         } finally {
             setLoading(false);
         }
@@ -276,16 +124,12 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
     const reset = () => {
         setResult(null);
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
-        setGeneratedBarbieImage(null);
-        setSelectedStyleBucket(null);
-        setImageError(null);
         setError(null);
     };
 
     const fullReset = () => {
         reset();
         setGender(null);
-        setSkinTone("");
     };
 
     const inputStyle = {
@@ -365,6 +209,9 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-8px); }
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .q-input:focus {
           border-color: ${accentMid} !important;
           box-shadow: 0 0 0 3px ${accentLight} !important;
@@ -385,7 +232,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 <div key={s.id} style={{
                     position: "fixed", left: `${s.x}%`, top: `${s.y}%`,
                     fontSize: `${s.size}px`,
-                    animation: "sparkle 1.8s ease-out forwards",
+                    animation: `sparkle 1.8s ease-out forwards`,
                     animationDelay: `${s.delay}s`,
                     pointerEvents: "none", zIndex: 100,
                 }}>{s.icon}</div>
@@ -409,7 +256,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                     fontSize: "clamp(24px, 5vw, 42px)", fontWeight: "900",
                     color: accentDark, margin: "0 0 8px", letterSpacing: "-0.5px",
                 }}>
-                    {gender === null ? "Barbie · Ken Generator" : isKen ? "Ken Generator" : "Barbie Generator"}
+                    {gender === null ? "Barbie · Ken Generator" : isKen ? "Ken Name Generator" : "Barbie Name Generator"}
                 </h1>
                 <p style={{ color: accent, fontSize: "15px", margin: 0, fontStyle: "italic" }}>
                     {gender === null
@@ -436,7 +283,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 {gender === null && (
                     <div style={{ textAlign: "center" }}>
                         <p style={{ color: "#7c3aed", marginBottom: "28px", fontSize: "15px", fontStyle: "italic" }}>
-                            First things first - who are you in Barbieland?
+                            First things first — who are you in Barbieland?
                         </p>
                         <div style={{ display: "flex", gap: "16px", justifyContent: "center" }}>
                             {[
@@ -477,41 +324,9 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                         <p style={{ color: accentDark, marginBottom: "22px", fontSize: "14px", textAlign: "center", fontStyle: "italic" }}>
                             {isKen
-                                ? "4 quick answers -> we'll reveal your Ken identity ✨"
-                                : "4 quick answers -> we'll reveal your Barbie alter ego 🌸"}
+                                ? "4 quick answers → we'll reveal your Ken identity ✨"
+                                : "4 quick answers → we'll reveal your Barbie alter ego 🌸"}
                         </p>
-
-                        <div style={{ marginBottom: "18px" }}>
-                            <label style={{ display: "block", color: accentDark, fontWeight: "bold", marginBottom: "8px", fontSize: "14px" }}>
-                                🎨 Choose skin tone for your {isKen ? "Ken" : "Barbie"} image
-                            </label>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                                {[
-                                    { key: "light", label: "Light" },
-                                    { key: "medium", label: "Medium" },
-                                    { key: "deep", label: "Deep" },
-                                ].map(({ key, label }) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setSkinTone(key)}
-                                        style={{
-                                            flex: 1,
-                                            padding: "10px 8px",
-                                            borderRadius: "10px",
-                                            border: `2px solid ${accentMid}55`,
-                                            background: skinTone === key ? `linear-gradient(135deg, ${accentMid}, ${accentDark})` : "rgba(255,255,255,0.6)",
-                                            color: skinTone === key ? "white" : accentDark,
-                                            fontWeight: "bold",
-                                            fontFamily: "'Playfair Display', Georgia, serif",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                             {questions.map(({ field, label, placeholder }) => (
@@ -554,44 +369,13 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                 {result && (
                     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
-                        <div style={{ marginBottom: "22px" }}>
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "14px" }}>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: "42px", marginBottom: "8px" }}>{isKen ? "⚡" : "🌟"}</div>
-                                    <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 10px", fontWeight: "bold" }}>
-                                        {result.barbieName}
-                                    </h2>
-                                    <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, lineHeight: "1.4" }}>
-                                        &ldquo;{result.tagline}&rdquo;
-                                    </p>
-                                </div>
-                                {generatedBarbieImage && (
-                                    <img
-                                        src={generatedBarbieImage}
-                                        alt={`Generated ${isKen ? "Ken" : "Barbie"}`}
-                                        style={{
-                                            width: "150px",
-                                            borderRadius: "14px",
-                                            border: `1.5px solid ${accentMid}35`,
-                                            background: "rgba(255,255,255,0.7)",
-                                            boxShadow: `0 8px 24px ${accentMid}30`,
-                                            flexShrink: 0,
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            {generatingImage && (
-                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
-                                    Generating image...
-                                </p>
-                            )}
-                            {imageError && (
-                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
-                                    {imageError}
-                                </p>
-                            )}
-                            <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
-                                {isKen ? "Ken" : "Barbie"} style match: {selectedStyleBucket || "glam"} · {skinTone}
+                        <div style={{ textAlign: "center", marginBottom: "32px", padding: "20px 0" }}>
+                            <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
+                            <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
+                                {result.barbieName}
+                            </h2>
+                            <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 20px", lineHeight: "1.4" }}>
+                                &ldquo;{result.tagline}&rdquo;
                             </p>
                         </div>
 
@@ -617,7 +401,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             ))}
                         </div>
 
-                        <div style={{ display: "flex", gap: "16px", marginTop: "24px" }}>
+                        <div style={{ display: "flex", gap: "16px", marginTop: "32px" }}>
                             <button className="outline-btn" onClick={reset} style={{
                                 flex: 1, padding: "16px",
                                 background: "rgba(255,255,255,0.5)", color: accent,
@@ -642,7 +426,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             </div>
 
             <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.6, textAlign: "center" }}>
-                Powered by Google Gemini + Cloudflare Workers AI · Barbieland {isKen ? "⚡" : "💗"}
+                Powered by Google Gemini · Barbieland {isKen ? "⚡" : "💗"}
             </p>
         </div>
     );
