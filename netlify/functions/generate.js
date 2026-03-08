@@ -3,6 +3,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isRateLimitError = (message = "") => /429|rate|quota|resource exhausted/i.test(message);
 const isRetryableServerError = (message = "") => /500|502|503|504|unavailable|timeout|internal/i.test(message);
+const withTimeout = (promise, ms, label = "timeout") =>
+    Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} after ${ms}ms`)), ms)),
+    ]);
 
 export default async (req, context) => {
     if (req.method !== "POST") {
@@ -33,10 +38,8 @@ export default async (req, context) => {
 
         // Models discovered from user's API key logs
         const modelsToTry = [
-            "gemini-flash-latest",     // Usually reliable for free tier
-            "gemini-2.0-flash",       // Modern, listed in logs
-            "gemini-pro-latest",      // Pro version fallback
-            "gemini-2.0-flash-lite"   // Lightweight fallback
+            "gemini-2.0-flash",
+            "gemini-flash-latest",
         ];
 
         let lastError = null;
@@ -46,15 +49,19 @@ export default async (req, context) => {
         for (const modelName of modelsToTry) {
             const model = genAI.getGenerativeModel({ model: modelName });
 
-            for (let attempt = 1; attempt <= 3; attempt += 1) {
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
                 try {
-                    const result = await model.generateContent({
-                        contents: [{ role: "user", parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            maxOutputTokens: max_tokens,
-                            responseMimeType: "application/json"
-                        },
-                    });
+                    const result = await withTimeout(
+                        model.generateContent({
+                            contents: [{ role: "user", parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                maxOutputTokens: max_tokens,
+                                responseMimeType: "application/json"
+                            },
+                        }),
+                        8000,
+                        `Gemini ${modelName}`
+                    );
                     const text = result.response.text();
 
                     return new Response(JSON.stringify({
@@ -74,8 +81,8 @@ export default async (req, context) => {
                     if (isRateLimitError(message)) sawRateLimit = true;
                     if (isRetryableServerError(message)) sawTransientFailure = true;
 
-                    if (!retryable || attempt === 3) break;
-                    await sleep(700 * attempt);
+                    if (!retryable || attempt === 2) break;
+                    await sleep(350 * attempt);
                 }
             }
         }
