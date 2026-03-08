@@ -69,6 +69,32 @@ const parseApiResponse = async (response) => {
         return { data: null, raw };
     }
 };
+const buildFallbackProfile = (answers, isKen) => {
+    const cleanJob = (answers.job || "").trim() || (isKen ? "Dream Role" : "Dream Career");
+    const cleanVibe = (answers.vibe || "").trim() || (isKen ? "chill focus" : "iconic confidence");
+    const cleanTrait = (answers.trait || "").trim() || (isKen ? "steady confidence" : "bold confidence");
+    const cleanHobby = (answers.hobby || "").trim() || (isKen ? "weekend adventures" : "creative escapes");
+
+    return {
+        barbieName: `${cleanJob} ${isKen ? "Ken" : "Barbie"}`,
+        tagline: isKen
+            ? `Built on ${cleanVibe} energy with ${cleanTrait}.`
+            : `Powered by ${cleanVibe} and ${cleanTrait}.`,
+        dreamJob: cleanJob,
+        dreamHouse: isKen
+            ? `A modern space built for ${cleanHobby} and easy living. It is calm, playful, and always guest-ready.`
+            : `A stylish space designed for ${cleanHobby} and big goals. It is bright, bold, and ready for anything.`,
+        powermove: isKen
+            ? `Turns ${cleanTrait} into momentum when the team needs it most.`
+            : `Turns ${cleanTrait} into momentum and makes hard things look easy.`,
+        outfit: isKen
+            ? `A clean tailored look with pieces inspired by ${cleanVibe}.`
+            : `A polished statement look inspired by ${cleanVibe}.`,
+        accessory: isKen
+            ? `A signature piece inspired by ${cleanHobby}.`
+            : `A signature accessory inspired by ${cleanHobby}.`,
+    };
+};
 
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
@@ -229,18 +255,19 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 throw new Error("The Dreamhouse had a glitch! Please try again. ✨");
             }
 
+            setResult(parsed);
             const styleBucket = deriveStyleBucket(answers);
             setSelectedStyleBucket(styleBucket);
-            await requestDollImage(parsed, styleBucket);
-
-            setResult(parsed);
+            requestDollImage(parsed, styleBucket);
             triggerSparkles();
         } catch (e) {
-            if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
-                setError("The Dreamhouse is currently at capacity! 🎀\n\nGoogle's free AI tier has a limit. Please wait about 30-60 seconds and try again! ✨");
-            } else {
-                setError(e.message || "Something went wrong in the Dreamhouse. Try again! ✨");
-            }
+            const fallback = buildFallbackProfile(answers, isKen);
+            setResult(fallback);
+            setSelectedStyleBucket(deriveStyleBucket(answers));
+            setGeneratedBarbieImage(null);
+            setImageError(null);
+            setError("AI is busy right now, so we generated an instant fallback profile. ✨");
+            triggerSparkles();
         } finally {
             setLoading(false);
         }
@@ -352,26 +379,6 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
         .outline-btn:hover {
           background: ${accentLight} !important;
         }
-        .result-layout {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-        .result-main, .result-image {
-          width: 100%;
-        }
-        @media (min-width: 980px) {
-          .result-layout {
-            flex-direction: row;
-            align-items: flex-start;
-          }
-          .result-main, .result-image {
-            width: 50%;
-          }
-          .result-image {
-            padding-left: 6px;
-          }
-        }
       `}</style>
 
             {sparkles.map((s) => (
@@ -418,7 +425,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 backdropFilter: "blur(14px)",
                 borderRadius: "24px",
                 padding: "36px",
-                maxWidth: "1000px",
+                maxWidth: "560px",
                 width: "100%",
                 border: `2px solid rgba(${isKen ? "59,130,246" : "236,72,153"},0.25)`,
                 boxShadow: `0 20px 60px rgba(${isKen ? "30,58,138" : "157,23,77"},0.12), 0 4px 16px rgba(${isKen ? "59,130,246" : "236,72,153"},0.1)`,
@@ -547,93 +554,88 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                 {result && (
                     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
-                        <div style={{ textAlign: "center", marginBottom: "24px", padding: "8px 0" }}>
-                            <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
-                            <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
-                                {result.barbieName}
-                            </h2>
-                            <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 12px", lineHeight: "1.4" }}>
-                                &ldquo;{result.tagline}&rdquo;
+                        <div style={{ marginBottom: "22px" }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "14px" }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: "42px", marginBottom: "8px" }}>{isKen ? "⚡" : "🌟"}</div>
+                                    <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 10px", fontWeight: "bold" }}>
+                                        {result.barbieName}
+                                    </h2>
+                                    <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, lineHeight: "1.4" }}>
+                                        &ldquo;{result.tagline}&rdquo;
+                                    </p>
+                                </div>
+                                {generatedBarbieImage && (
+                                    <img
+                                        src={generatedBarbieImage}
+                                        alt={`Generated ${isKen ? "Ken" : "Barbie"}`}
+                                        style={{
+                                            width: "150px",
+                                            borderRadius: "14px",
+                                            border: `1.5px solid ${accentMid}35`,
+                                            background: "rgba(255,255,255,0.7)",
+                                            boxShadow: `0 8px 24px ${accentMid}30`,
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            {generatingImage && (
+                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
+                                    Generating image...
+                                </p>
+                            )}
+                            {imageError && (
+                                <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
+                                    {imageError}
+                                </p>
+                            )}
+                            <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
+                                {isKen ? "Ken" : "Barbie"} style match: {selectedStyleBucket || "glam"} · {skinTone}
                             </p>
                         </div>
 
-                        <div className="result-layout">
-                            <div className="result-main">
-                                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                    {[
-                                        { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
-                                        { emoji: isKen ? "🎸" : "👜", label: "Accessory", value: result.accessory },
-                                        { emoji: isKen ? "🏄" : "👠", label: "Dream Career", value: result.dreamJob },
-                                        { emoji: isKen ? "🏠" : "🏠", label: "Dreamhouse", value: result.dreamHouse },
-                                        { emoji: isKen ? "💪" : "💅", label: "Signature Power Move", value: result.powermove },
-                                    ].map(({ emoji, label, value }) => (
-                                        <div key={label} style={{
-                                            background: `${accentLight}80`,
-                                            border: `1.5px solid ${accentMid}25`,
-                                            borderRadius: "16px", padding: "16px 20px",
-                                            transition: "transform 0.2s",
-                                        }}>
-                                            <p style={{ margin: "0 0 5px", fontSize: "12px", fontWeight: "bold", color: accent, textTransform: "uppercase", letterSpacing: "1.2px" }}>
-                                                {emoji} {label}
-                                            </p>
-                                            <p style={{ margin: 0, color: accentDark, fontSize: "15px", lineHeight: "1.6" }}>{value}</p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div style={{ display: "flex", gap: "16px", marginTop: "24px" }}>
-                                    <button className="outline-btn" onClick={reset} style={{
-                                        flex: 1, padding: "16px",
-                                        background: "rgba(255,255,255,0.5)", color: accent,
-                                        border: `2px solid ${accentMid}50`, borderRadius: "16px",
-                                        fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
-                                        cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
-                                    }}>
-                                        {isKen ? "⚡ Try Again" : "✨ Try Again"}
-                                    </button>
-                                    <button className="outline-btn" onClick={fullReset} style={{
-                                        flex: 1, padding: "16px",
-                                        background: "rgba(255,255,255,0.5)", color: accent,
-                                        border: `2px solid ${accentMid}50`, borderRadius: "16px",
-                                        fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
-                                        cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
-                                    }}>
-                                        Switch
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="result-image">
-                                <div style={{ marginBottom: "22px", textAlign: "center" }}>
-                                    {generatedBarbieImage && (
-                                        <img
-                                            src={generatedBarbieImage}
-                                            alt={`Generated ${isKen ? "Ken" : "Barbie"}`}
-                                            style={{
-                                                width: "100%",
-                                                maxWidth: "360px",
-                                                borderRadius: "18px",
-                                                border: `1.5px solid ${accentMid}35`,
-                                                background: "rgba(255,255,255,0.7)",
-                                                boxShadow: `0 8px 24px ${accentMid}30`,
-                                            }}
-                                        />
-                                    )}
-                                    {generatingImage && (
-                                        <p style={{ margin: "8px 0 0", fontSize: "13px", color: accent }}>
-                                            Generating image...
-                                        </p>
-                                    )}
-                                    {imageError && (
-                                        <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#b91c1c" }}>
-                                            {imageError}
-                                        </p>
-                                    )}
-                                    <p style={{ margin: "10px 0 0", fontSize: "12px", color: accent, textTransform: "capitalize", letterSpacing: "0.6px" }}>
-                                        {isKen ? "Ken" : "Barbie"} style match: {selectedStyleBucket || "glam"} · {skinTone}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            {[
+                                { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
+                                { emoji: isKen ? "🎸" : "👜", label: "Accessory", value: result.accessory },
+                                { emoji: isKen ? "🏄" : "👠", label: "Dream Career", value: result.dreamJob },
+                                { emoji: isKen ? "🏠" : "🏠", label: "Dreamhouse", value: result.dreamHouse },
+                                { emoji: isKen ? "💪" : "💅", label: "Signature Power Move", value: result.powermove },
+                            ].map(({ emoji, label, value }) => (
+                                <div key={label} style={{
+                                    background: `${accentLight}80`,
+                                    border: `1.5px solid ${accentMid}25`,
+                                    borderRadius: "16px", padding: "16px 20px",
+                                    transition: "transform 0.2s",
+                                }}>
+                                    <p style={{ margin: "0 0 5px", fontSize: "12px", fontWeight: "bold", color: accent, textTransform: "uppercase", letterSpacing: "1.2px" }}>
+                                        {emoji} {label}
                                     </p>
+                                    <p style={{ margin: 0, color: accentDark, fontSize: "15px", lineHeight: "1.6" }}>{value}</p>
                                 </div>
-                            </div>
+                            ))}
+                        </div>
+
+                        <div style={{ display: "flex", gap: "16px", marginTop: "24px" }}>
+                            <button className="outline-btn" onClick={reset} style={{
+                                flex: 1, padding: "16px",
+                                background: "rgba(255,255,255,0.5)", color: accent,
+                                border: `2px solid ${accentMid}50`, borderRadius: "16px",
+                                fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
+                                cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
+                            }}>
+                                {isKen ? "⚡ Try Again" : "✨ Try Again"}
+                            </button>
+                            <button className="outline-btn" onClick={fullReset} style={{
+                                flex: 1, padding: "16px",
+                                background: "rgba(255,255,255,0.5)", color: accent,
+                                border: `2px solid ${accentMid}50`, borderRadius: "16px",
+                                fontSize: "16px", fontFamily: "'Playfair Display', Georgia, serif",
+                                cursor: "pointer", fontWeight: "bold", transition: "all 0.2s",
+                            }}>
+                                Switch
+                            </button>
                         </div>
                     </div>
                 )}
