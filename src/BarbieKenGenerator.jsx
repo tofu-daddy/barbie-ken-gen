@@ -61,6 +61,14 @@ const buildDollImagePrompt = (resultData, styleBucket, skinTone, isKen) => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const parseApiResponse = async (response) => {
+    const raw = await response.text();
+    try {
+        return { data: JSON.parse(raw), raw };
+    } catch {
+        return { data: null, raw };
+    }
+};
 
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
@@ -116,9 +124,9 @@ export default function BarbieKenGenerator() {
                 }),
             });
 
-            const data = await response.json();
-            if (!response.ok || !data.imageUrl) {
-                throw new Error(data.error || "Image generation failed");
+            const { data, raw } = await parseApiResponse(response);
+            if (!response.ok || !data?.imageUrl) {
+                throw new Error(data?.error || `Image generation failed (${response.status})${raw?.startsWith("<") ? " — temporary upstream HTML error" : ""}`);
             }
 
             setGeneratedBarbieImage(data.imageUrl);
@@ -196,7 +204,12 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                         max_tokens: 1000,
                     }),
                 });
-                data = await response.json();
+                const parsed = await parseApiResponse(response);
+                data = parsed.data || {
+                    error: parsed.raw?.startsWith("<")
+                        ? `Server error ${response.status} (temporary HTML gateway response)`
+                        : `Server error ${response.status}`,
+                };
                 if (response.ok || ![502, 503, 504].includes(response.status) || attempt === 2) break;
                 await sleep(600);
             }
