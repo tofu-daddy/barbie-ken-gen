@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isRateLimitError = (message = "") => /429|rate|quota|resource exhausted/i.test(message);
+const isRetryableServerError = (message = "") => /500|502|503|504|unavailable|timeout|internal/i.test(message);
+
 export default async (req, context) => {
     if (req.method !== "POST") {
         return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -36,40 +40,68 @@ export default async (req, context) => {
         ];
 
         let lastError = null;
+        let sawRateLimit = false;
+        let sawTransientFailure = false;
 
         for (const modelName of modelsToTry) {
-            try {
-                const model = genAI.getGenerativeModel({ model: modelName });
-                const result = await model.generateContent({
-                    contents: [{ role: "user", parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        maxOutputTokens: max_tokens,
-                        responseMimeType: "application/json"
-                    },
-                });
-                const text = result.response.text();
+            const model = genAI.getGenerativeModel({ model: modelName });
 
-                return new Response(JSON.stringify({ text, modelUsed: modelName }), {
-                    status: 200,
-                    headers: { "Content-Type": "application/json" }
-                });
-            } catch (e) {
-                console.warn(`Failed with ${modelName}:`, e.message);
-                lastError = e;
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+                try {
+                    const result = await model.generateContent({
+                        contents: [{ role: "user", parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            maxOutputTokens: max_tokens,
+                            responseMimeType: "application/json"
+                        },
+                    });
+                    const text = result.response.text();
 
-                // If we get a 429, it's a quota issue. Stop and tell the user.
-                if (e.message.includes("429") || e.message.includes("quota")) {
                     return new Response(JSON.stringify({
-                        error: "The Dreamhouse is currently at capacity! 🎀",
-                        errorType: "QUOTA_EXCEEDED",
-                        details: e.message,
-                        hint: "Google's free tier has a limit. Please wait about 30-60 seconds and try again! ✨"
+                        text,
+                        modelUsed: modelName,
+                        attempts: attempt
                     }), {
-                        status: 429,
+                        status: 200,
                         headers: { "Content-Type": "application/json" }
                     });
+                } catch (e) {
+                    const message = e?.message || "Unknown Gemini error";
+                    console.warn(`Failed with ${modelName} (attempt ${attempt}/3):`, message);
+                    lastError = e;
+
+                    const retryable = isRateLimitError(message) || isRetryableServerError(message);
+                    if (isRateLimitError(message)) sawRateLimit = true;
+                    if (isRetryableServerError(message)) sawTransientFailure = true;
+
+                    if (!retryable || attempt === 3) break;
+                    await sleep(700 * attempt);
                 }
             }
+        }
+
+        if (sawRateLimit) {
+            return new Response(JSON.stringify({
+                error: "The Dreamhouse is currently at capacity! 🎀",
+                errorType: "QUOTA_EXCEEDED",
+                details: lastError?.message,
+                hint: "Google's free tier has a limit. Please wait about 30-60 seconds and try again! ✨"
+            }), {
+                status: 429,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        if (sawTransientFailure) {
+            return new Response(JSON.stringify({
+                error: "Temporary Dreamhouse server issue",
+                errorType: "TRANSIENT_FAILURE",
+                details: lastError?.message,
+                hint: "Please try again in a few seconds. ✨"
+            }), {
+                status: 503,
+                headers: { "Content-Type": "application/json" }
+            });
         }
 
         return new Response(JSON.stringify({

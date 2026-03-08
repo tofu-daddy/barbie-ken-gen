@@ -60,6 +60,8 @@ const buildDollImagePrompt = (resultData, styleBucket, skinTone, isKen) => {
     ].join(", ");
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
@@ -183,16 +185,21 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 }`;
 
         try {
-            const response = await fetch("/api/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: isKen ? kenPrompt : barbiePrompt,
-                    max_tokens: 1000,
-                }),
-            });
-
-            const data = await response.json();
+            let response = null;
+            let data = null;
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+                response = await fetch("/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        prompt: isKen ? kenPrompt : barbiePrompt,
+                        max_tokens: 1000,
+                    }),
+                });
+                data = await response.json();
+                if (response.ok || ![502, 503, 504].includes(response.status) || attempt === 2) break;
+                await sleep(600);
+            }
 
             if (!response.ok) {
                 throw new Error(data.error || `Server error ${response.status}`);
