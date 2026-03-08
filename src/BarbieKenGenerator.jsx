@@ -1,5 +1,14 @@
 import { useState } from "react";
 
+const parseApiResponse = async (response) => {
+    const raw = await response.text();
+    try {
+        return { data: JSON.parse(raw), raw };
+    } catch {
+        return { data: null, raw };
+    }
+};
+
 export default function BarbieKenGenerator() {
     const [gender, setGender] = useState(null);
     const [answers, setAnswers] = useState({ job: "", vibe: "", trait: "", hobby: "" });
@@ -90,10 +99,13 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 }),
             });
 
-            const data = await response.json();
+            const { data, raw } = await parseApiResponse(response);
 
             if (!response.ok) {
-                throw new Error(data.error || `Server error ${response.status}`);
+                throw new Error(data?.error || `Server error ${response.status}${raw?.startsWith("<") ? " (gateway HTML response)" : ""}`);
+            }
+            if (!data) {
+                throw new Error("Server returned an invalid response. Please try again. ✨");
             }
 
             const { text } = data;
