@@ -18,6 +18,7 @@ export default function BarbieKenGenerator() {
     const [sparkles, setSparkles] = useState([]);
     const [image, setImage] = useState(null);
     const [imageLoading, setImageLoading] = useState(false);
+    const [skinTone, setSkinTone] = useState("medium");
 
     const isKen = gender === "ken";
     const accent = isKen ? "#1d4ed8" : "#be185d";
@@ -124,7 +125,12 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
             setResult(parsed);
             triggerSparkles();
-            generateImage(parsed.imagePrompt);
+            const skinToneMap = {
+                light: "light skin tone, fair complexion",
+                medium: "medium skin tone, olive complexion",
+                dark: "dark skin tone, deep complexion",
+            };
+            generateImage(`${parsed.imagePrompt}, ${skinToneMap[skinTone]}`);
 
         } catch (e) {
             if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
@@ -356,6 +362,32 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                     transition: "all 0.2s",
                                 }}>{label}</button>
                             ))}
+                        </div>
+
+                        <div style={{ marginBottom: "20px" }}>
+                            <p style={{ color: accentDark, fontSize: "12px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>
+                                Skin Tone
+                            </p>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                                {[
+                                    { key: "light", label: "Light", emoji: "🏻" },
+                                    { key: "medium", label: "Medium", emoji: "🏽" },
+                                    { key: "dark", label: "Dark", emoji: "🏿" },
+                                ].map(({ key, label, emoji }) => (
+                                    <button key={key} onClick={() => setSkinTone(key)} style={{
+                                        flex: 1, padding: "8px",
+                                        background: skinTone === key ? `linear-gradient(135deg, ${accentMid}, ${accentDark})` : "rgba(255,255,255,0.5)",
+                                        color: skinTone === key ? "white" : accentDark,
+                                        border: `2px solid ${skinTone === key ? accentMid : `${accentMid}40`}`,
+                                        borderRadius: "10px", cursor: "pointer",
+                                        fontFamily: "'Playfair Display', Georgia, serif",
+                                        fontSize: "13px", fontWeight: "bold",
+                                        transition: "all 0.2s",
+                                    }}>
+                                        {emoji} {label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <p style={{ color: accentDark, marginBottom: "22px", fontSize: "14px", textAlign: "center", fontStyle: "italic" }}>
