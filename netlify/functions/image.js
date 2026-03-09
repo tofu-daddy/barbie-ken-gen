@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 const getAllowedOrigins = () => [
     process.env.URL,
     process.env.DEPLOY_URL,
@@ -25,7 +23,7 @@ export default async (req) => {
     }
 
     try {
-        const { prompt, max_tokens = 1024 } = await req.json();
+        const { prompt } = await req.json();
 
         if (!prompt) {
             return new Response(JSON.stringify({ error: "Missing prompt" }), {
@@ -34,41 +32,43 @@ export default async (req) => {
             });
         }
 
-        if (!process.env.ANTHROPIC_API_KEY) {
-            return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY is missing in Netlify settings!" }), {
+        const { CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN } = process.env;
+        if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN) {
+            return new Response(JSON.stringify({ error: "Cloudflare credentials missing in Netlify settings!" }), {
                 status: 500,
                 headers: { "Content-Type": "application/json" }
             });
         }
 
-        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const cfRes = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ prompt, num_steps: 4, width: 512, height: 768 }),
+            }
+        );
 
-        const message = await client.messages.create({
-            model: "claude-opus-4-6",
-            max_tokens,
-            messages: [{ role: "user", content: prompt }],
-        });
-
-        const text = message.content[0]?.type === "text" ? message.content[0].text : "";
-
-        return new Response(JSON.stringify({ text }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-        });
-    } catch (error) {
-        console.error("Generate error:", error.message);
-
-        if (error instanceof Anthropic.RateLimitError) {
-            return new Response(JSON.stringify({
-                error: "The Dreamhouse is currently at capacity! 🎀",
-                errorType: "RATE_LIMITED",
-                hint: "Please wait a moment and try again! ✨"
-            }), {
-                status: 429,
+        if (!cfRes.ok) {
+            const errText = await cfRes.text();
+            console.error("Cloudflare error:", cfRes.status, errText);
+            return new Response(JSON.stringify({ error: "Image generation failed. Please try again." }), {
+                status: 500,
                 headers: { "Content-Type": "application/json" }
             });
         }
 
+        const imageBuffer = await cfRes.arrayBuffer();
+        const base64 = Buffer.from(imageBuffer).toString("base64");
+
+        return new Response(JSON.stringify({ image: `data:image/png;base64,${base64}` }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+        });
+    } catch {
         return new Response(JSON.stringify({ error: "An unexpected error occurred. Please try again." }), {
             status: 500,
             headers: { "Content-Type": "application/json" }
@@ -77,5 +77,5 @@ export default async (req) => {
 };
 
 export const config = {
-    path: "/api/generate"
+    path: "/api/image"
 };

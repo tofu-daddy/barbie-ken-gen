@@ -16,6 +16,8 @@ export default function BarbieKenGenerator() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [sparkles, setSparkles] = useState([]);
+    const [image, setImage] = useState(null);
+    const [imageLoading, setImageLoading] = useState(false);
 
     const isKen = gender === "ken";
     const accent = isKen ? "#1d4ed8" : "#be185d";
@@ -67,7 +69,8 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
   "dreamHouse": "Their Ken dream setup (2 sentences — very Ken-coded)",
   "powermove": "Their signature Ken power move (1 sentence)",
   "outfit": "Brief description of what this Ken is wearing (2-3 items, specific and fun)",
-  "accessory": "One iconic accessory this Ken is holding or wearing"
+  "accessory": "One iconic accessory this Ken is holding or wearing",
+  "imagePrompt": "A vivid prompt for AI image generation. Describe this Ken as a physical Mattel Ken fashion doll: his specific hair color/style, face, exact outfit items with colors, the accessory he is holding, and his dreamhouse setting. End with: 'Mattel Ken fashion doll, plastic toy photography, vibrant saturated colors, studio lighting, clean gradient background, ultra-detailed'"
 }`;
 
         const barbiePrompt = `You are the official Barbie Name Generator. Based on the user's answers, create their unique Barbie identity. Be playful, fun, and on-brand — confident, capable, and iconic.
@@ -86,7 +89,8 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
   "dreamHouse": "Description of their Barbie Dreamhouse setup (2 sentences)",
   "powermove": "Their signature Barbie power move (1 sentence)",
   "outfit": "Brief description of what this Barbie is wearing (2-3 items, glamorous and specific)",
-  "accessory": "One iconic accessory this Barbie is holding or wearing"
+  "accessory": "One iconic accessory this Barbie is holding or wearing",
+  "imagePrompt": "A vivid prompt for AI image generation. Describe this Barbie as a physical Mattel Barbie fashion doll: her specific hair color/style, glamorous makeup, exact outfit items with colors, the accessory she is holding, and her Dreamhouse setting. End with: 'Mattel Barbie fashion doll, plastic toy photography, vibrant pink aesthetic, studio lighting, clean gradient background, ultra-detailed'"
 }`;
 
         try {
@@ -112,8 +116,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
             let parsed;
             try {
-                const clean = text.replace(/```json|```/g, "").trim();
-                parsed = JSON.parse(clean);
+                parsed = JSON.parse(text);
             } catch (parseError) {
                 console.error("JSON Parse Error:", parseError, "Original text:", text);
                 throw new Error("The Dreamhouse had a glitch! Please try again. ✨");
@@ -121,6 +124,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
             setResult(parsed);
             triggerSparkles();
+            generateImage(parsed.imagePrompt);
 
         } catch (e) {
             if (e.message.includes("capacity") || e.message.includes("quota") || e.message.includes("429")) {
@@ -133,10 +137,30 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
         }
     };
 
+    const generateImage = async (imagePrompt) => {
+        if (!imagePrompt) return;
+        setImageLoading(true);
+        try {
+            const res = await fetch("/api/image", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: imagePrompt }),
+            });
+            const data = await res.json();
+            if (data.image) setImage(data.image);
+        } catch {
+            // silently fail — image is a bonus feature
+        } finally {
+            setImageLoading(false);
+        }
+    };
+
     const reset = () => {
         setResult(null);
         setAnswers({ job: "", vibe: "", trait: "", hobby: "" });
         setError(null);
+        setImage(null);
+        setImageLoading(false);
     };
 
     const fullReset = () => {
@@ -391,6 +415,34 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                             </p>
                         </div>
 
+                        {imageLoading && (
+                            <div style={{
+                                width: "100%", height: "220px",
+                                background: accentLight,
+                                borderRadius: "16px",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                marginBottom: "20px",
+                                animation: "shimmer 1.2s ease-in-out infinite",
+                            }}>
+                                <p style={{ color: accent, fontSize: "14px", fontStyle: "italic" }}>
+                                    {isKen ? "⚡ Generating your Ken doll..." : "✨ Generating your Barbie doll..."}
+                                </p>
+                            </div>
+                        )}
+                        {image && !imageLoading && (
+                            <div style={{ marginBottom: "20px", borderRadius: "16px", overflow: "hidden" }}>
+                                <img
+                                    src={image}
+                                    alt={result.barbieName}
+                                    style={{
+                                        width: "100%", display: "block",
+                                        borderRadius: "16px",
+                                        boxShadow: `0 8px 32px ${accentMid}30`,
+                                    }}
+                                />
+                            </div>
+                        )}
+
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             {[
                                 { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
@@ -438,7 +490,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
             </div>
 
             <p style={{ color: accent, marginTop: "24px", fontSize: "12px", opacity: 0.6, textAlign: "center" }}>
-                Powered by Google Gemini · Barbieland {isKen ? "⚡" : "💗"}
+                Powered by Claude & Cloudflare · Barbieland {isKen ? "⚡" : "💗"}
             </p>
         </div>
     );
