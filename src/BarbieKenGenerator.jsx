@@ -292,7 +292,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                     fontSize: "clamp(24px, 5vw, 42px)", fontWeight: "900",
                     color: accentDark, margin: "0 0 8px", letterSpacing: "-0.5px",
                 }}>
-                    {gender === null ? "Barbie · Ken Generator" : isKen ? "Ken Name Generator" : "Barbie Name Generator"}
+                    Barbie · Ken Generator
                 </h1>
                 <p style={{ color: accent, fontSize: "15px", margin: 0, fontStyle: "italic" }}>
                     {gender === null
