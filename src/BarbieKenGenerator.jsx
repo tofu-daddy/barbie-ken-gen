@@ -308,7 +308,7 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                 backdropFilter: "blur(14px)",
                 borderRadius: "24px",
                 padding: "36px",
-                maxWidth: "560px",
+                maxWidth: "960px",
                 width: "100%",
                 border: `2px solid rgba(${isKen ? "59,130,246" : "236,72,153"},0.25)`,
                 boxShadow: `0 20px 60px rgba(${isKen ? "30,58,138" : "157,23,77"},0.12), 0 4px 16px rgba(${isKen ? "59,130,246" : "236,72,153"},0.1)`,
@@ -405,52 +405,30 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
 
                 {result && (
                     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
-                        <div style={{ textAlign: "center", marginBottom: "32px", padding: "20px 0" }}>
-                            <div style={{ fontSize: "52px", marginBottom: "16px" }}>{isKen ? "⚡" : "🌟"}</div>
-                            <h2 style={{ fontSize: "clamp(24px, 5vw, 36px)", color: accentDark, margin: "0 0 12px", fontWeight: "bold" }}>
+
+                        {/* Header — full width, centered */}
+                        <div style={{ textAlign: "center", marginBottom: "28px", padding: "20px 0 0" }}>
+                            <div style={{ fontSize: "52px", marginBottom: "12px" }}>{isKen ? "⚡" : "🌟"}</div>
+                            <h2 style={{ fontSize: "clamp(22px, 4vw, 34px)", color: accentDark, margin: "0 0 10px", fontWeight: "bold" }}>
                                 {result.barbieName}
                             </h2>
-                            <p style={{ fontSize: "18px", color: accent, fontStyle: "italic", margin: 0, padding: "0 20px", lineHeight: "1.4" }}>
+                            <p style={{ fontSize: "17px", color: accent, fontStyle: "italic", margin: 0, lineHeight: "1.4" }}>
                                 &ldquo;{result.tagline}&rdquo;
                             </p>
                         </div>
 
-                        {imageLoading && (
-                            <div style={{
-                                width: "100%", height: "220px",
-                                background: accentLight,
-                                borderRadius: "16px",
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                marginBottom: "20px",
-                                animation: "shimmer 1.2s ease-in-out infinite",
-                            }}>
-                                <p style={{ color: accent, fontSize: "14px", fontStyle: "italic" }}>
-                                    {isKen ? "⚡ Generating your Ken doll..." : "✨ Generating your Barbie doll..."}
-                                </p>
-                            </div>
-                        )}
-                        {image && !imageLoading && (
-                            <div style={{ marginBottom: "20px", borderRadius: "16px", overflow: "hidden" }}>
-                                <img
-                                    src={image}
-                                    alt={result.barbieName}
-                                    style={{
-                                        width: "100%", display: "block",
-                                        borderRadius: "16px",
-                                        boxShadow: `0 8px 32px ${accentMid}30`,
-                                    }}
-                                />
-                            </div>
-                        )}
+                        {/* 50/50 split — characteristics left, image right */}
+                        <div style={{ display: "flex", gap: "28px", alignItems: "flex-start", marginBottom: "28px" }}>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                            {[
-                                { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
-                                { emoji: isKen ? "🎸" : "👜", label: "Accessory", value: result.accessory },
-                                { emoji: isKen ? "🏄" : "👠", label: "Dream Career", value: result.dreamJob },
-                                { emoji: isKen ? "🏠" : "🏠", label: "Dreamhouse", value: result.dreamHouse },
-                                { emoji: isKen ? "💪" : "💅", label: "Signature Power Move", value: result.powermove },
-                            ].map(({ emoji, label, value }) => (
+                            {/* Left: characteristic cards */}
+                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+                                {[
+                                    { emoji: isKen ? "👕" : "👗", label: "Outfit", value: result.outfit },
+                                    { emoji: isKen ? "🎸" : "👜", label: "Accessory", value: result.accessory },
+                                    { emoji: isKen ? "🏄" : "👠", label: "Dream Career", value: result.dreamJob },
+                                    { emoji: isKen ? "🏠" : "🏠", label: "Dreamhouse", value: result.dreamHouse },
+                                    { emoji: isKen ? "💪" : "💅", label: "Signature Power Move", value: result.powermove },
+                                ].map(({ emoji, label, value }) => (
                                 <div key={label} style={{
                                     background: `${accentLight}80`,
                                     border: `1.5px solid ${accentMid}25`,
@@ -463,9 +441,47 @@ Respond ONLY with valid JSON, no markdown, no backticks. Format:
                                     <p style={{ margin: 0, color: accentDark, fontSize: "15px", lineHeight: "1.6" }}>{value}</p>
                                 </div>
                             ))}
-                        </div>
+                            </div>{/* end left column */}
 
-                        <div style={{ display: "flex", gap: "16px", marginTop: "32px" }}>
+                            {/* Right: image */}
+                            <div style={{ flex: 1 }}>
+                                {imageLoading && (
+                                    <div style={{
+                                        width: "100%", height: "320px",
+                                        background: accentLight,
+                                        borderRadius: "16px",
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        animation: "shimmer 1.2s ease-in-out infinite",
+                                    }}>
+                                        <p style={{ color: accent, fontSize: "14px", fontStyle: "italic" }}>
+                                            {isKen ? "⚡ Generating your Ken doll..." : "✨ Generating your Barbie doll..."}
+                                        </p>
+                                    </div>
+                                )}
+                                {image && !imageLoading && (
+                                    <img
+                                        src={image}
+                                        alt={result.barbieName}
+                                        style={{
+                                            width: "100%", display: "block",
+                                            borderRadius: "16px",
+                                            boxShadow: `0 8px 32px ${accentMid}30`,
+                                        }}
+                                    />
+                                )}
+                                {!image && !imageLoading && (
+                                    <div style={{
+                                        width: "100%", height: "320px",
+                                        background: `${accentLight}50`,
+                                        borderRadius: "16px",
+                                        border: `1.5px dashed ${accentMid}40`,
+                                    }} />
+                                )}
+                            </div>{/* end right column */}
+
+                        </div>{/* end 50/50 row */}
+
+                        <div style={{ display: "flex", gap: "16px" }}>
                             <button className="outline-btn" onClick={reset} style={{
                                 flex: 1, padding: "16px",
                                 background: "rgba(255,255,255,0.5)", color: accent,
