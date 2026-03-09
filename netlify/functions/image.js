@@ -61,8 +61,16 @@ export default async (req) => {
             });
         }
 
-        const imageBuffer = await cfRes.arrayBuffer();
-        const base64 = Buffer.from(imageBuffer).toString("base64");
+        const cfData = await cfRes.json();
+        const base64 = cfData.result?.image;
+
+        if (!base64) {
+            console.error("Cloudflare response missing result.image:", JSON.stringify(cfData));
+            return new Response(JSON.stringify({ error: "No image data returned from Cloudflare." }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
 
         return new Response(JSON.stringify({ image: `data:image/png;base64,${base64}` }), {
             status: 200,
